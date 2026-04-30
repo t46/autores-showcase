@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AutoRes — 手法・タスク説明</title>
-    <meta name="description" content="AutoRes 4 components それぞれの「何をやらせているか」「どういう手法か」「どう動いているか」の説明。">
+    <meta name="description" content="AutoRes 4 components の前提技術と「何をやらせているか / どういう手法か / 具体的にどう動いているか」を、前提知識ゼロから読める形で説明。">
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -22,8 +22,8 @@
     <header class="hero">
         <div class="container">
             <h1>手法・タスク説明</h1>
-            <p class="subtitle">4 コンポーネントが何を解こうとしているか / どう設計したか / 具体的にどう動くか</p>
-            <p style="font-size:13px;color:#888;margin-top:8px;">実行結果は <a href="./index.html">結果ページ</a> へ。</p>
+            <p class="subtitle">前提知識ゼロから読めるよう、用語と背景を含めて噛み砕いて説明</p>
+            <p style="font-size:13px;color:#888;margin-top:8px;">実行結果（数値・チャート）は <a href="./index.html">結果ページ</a> へ。</p>
         </div>
     </header>
 
@@ -31,218 +31,324 @@
 
         <!-- ===================== §0 全体像 ===================== -->
         <section class="section" id="overview">
-            <h2><span class="num">§0</span> 全体ビジョン</h2>
-            <p class="lead">「構造・道具・評価・知識を与え、手続きは与えない」 — AI に研究をさせるために、固定的なパイプラインではなく、エージェントが自律的に判断して動き続ける環境を設計する。</p>
+            <h2><span class="num">§0</span> このプロジェクトは何をしているか</h2>
+
+            <div class="intro-box">
+                <strong>1 行で:</strong> 「AI に研究をさせる」ことを目指して、<strong>論文を読み・再現し・改善し・関連研究を探す</strong> という研究の各ステップを自動化する 4 つの道具を作っています。
+            </div>
 
             <div class="method-block">
-                <h4>取り組みの目標</h4>
-                <ul>
-                    <li>既存 AI（Transformer ベース）を超える革新的技術を AI 自身に発見させる</li>
-                    <li>研究自動化そのものの改善を AI に研究させる（メタ的ループ）</li>
-                    <li>上記の検証基盤として、汎用 ML 研究能力を持つエージェントを構築する</li>
-                </ul>
+                <p>研究の現場では、人間がやっている作業の大半は実は<strong>手続き的な作業</strong>です。論文を読んで実装を真似する、ハイパラを変えて再実験する、関連論文を探す、結果が論文と一致するか検証する — こうした作業を AI が自動でできるようになれば、人間は「何を研究すべきか」という創造的な判断に集中できます。</p>
 
-                <h4>4 コンポーネントの位置づけ</h4>
-                <p>「論文を読む → 再現する → 改善する → 評価する」という研究のサイクルを 4 つの独立したツールで分解。それぞれが個別に動き、組み合わせると end-to-end になる設計。</p>
+                <p>このプロジェクトでは、<strong>研究のサイクル全体</strong>を 4 つの独立した CLI ツールに分解しました。それぞれが単独でも価値を生み、組み合わせると end-to-end の研究エージェントになります。</p>
+
+                <h4>4 つの道具と、それぞれが担当する研究ステップ</h4>
                 <table class="kv-table">
                     <tbody>
-                        <tr><th>PaperBench Iter</th><td>「生成したコードを評価し、失敗から学んで再生成する」反復改善ループの実証</td></tr>
-                        <tr><th>Self-Improving Agent</th><td>「弱いベースラインから自動で改善し続ける」24/365 自己改善ループの最小実装</td></tr>
-                        <tr><th>Reproduce Pipeline</th><td>arXiv URL から再現結果までを 5 ステージで自動化する end-to-end パイプライン</td></tr>
-                        <tr><th>Literature Scout</th><td>研究コンテキストに対する関連論文の自動発見ツール（pull 型）</td></tr>
+                        <tr><th>① Literature Scout</th><td>「気になるトピックの最近の論文を集めてくる」（pull 型の文献調査）</td></tr>
+                        <tr><th>② Reproduce Pipeline</th><td>「arXiv URL を入れたら論文を再現してくれる」（5 ステージの自動再現）</td></tr>
+                        <tr><th>③ PaperBench Iter</th><td>「再現コードのスコアが低いとき、AI が分析して改善版を出す」（反復改善ループ）</td></tr>
+                        <tr><th>④ Self-Improving Agent</th><td>「弱いモデルを与えると、AI が勝手に train.py を書き換えて精度を上げる」（24/365 自己改善）</td></tr>
                     </tbody>
                 </table>
+
+                <p>以降、それぞれの道具の<strong>タスク（何を解こうとしているか）</strong>と<strong>手法（どう設計したか）</strong>を、必要な前提技術を含めて説明します。</p>
+            </div>
+        </section>
+
+        <!-- ===================== §0.5 前提技術 ===================== -->
+        <section class="section" id="prerequisites">
+            <h2><span class="num">§0.5</span> 前提となる技術・用語</h2>
+            <p class="lead">本ページに何度も出てくる用語の最小限の説明です。すでにご存知なら飛ばして §1 へ。</p>
+
+            <div class="term-grid">
+                <div class="term-card">
+                    <div class="term-name">Claude / Claude Code</div>
+                    <div class="term-desc">Anthropic 社の大規模言語モデル（GPT 等と同類）。<code>Claude Code</code> はその CLI 版で、ファイル読み書き・シェル実行・スキル呼び出しなどを通じて複雑なタスクを実行する。本プロジェクトのエージェント基盤。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">arXiv</div>
+                    <div class="term-desc">論文プレプリント（査読前公開）の最大級のサーバ。機械学習・物理学・数学などの研究者が論文を最初に公開する場所。本プロジェクトでは arXiv URL を入力にして処理する。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">PaperBench</div>
+                    <div class="term-desc">OpenAI が 2025 年に公開した論文再現ベンチマーク。20 本の論文に対し、各論文ごとに「この論文を再現したと言えるための要件ツリー」（rubric）が作られている。AI が生成した再現コードがそのツリーをどれだけ満たすかを採点する。合計 8,316 サブタスク。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">rubric（ルーブリック）</div>
+                    <div class="term-desc">PaperBench の各論文に付属する<strong>評価項目の階層ツリー</strong>。例: 「U-Net 実装」→「lucidrains の repo を import」「初期化が論文通り」など細かいリーフノードに分解されている。各ノードに重みが付き、子の達成度が親に伝播する形で全体スコアが計算される。本プロジェクトの Stochastic Interpolants では 58 ノード。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">SimpleJudge</div>
+                    <div class="term-desc">PaperBench 公式の自動採点エンジン。LLM（claude-sonnet-4 等）に rubric の各ノードと生成コードを渡して、満たしているかを 0〜100 で判定させる。人間の採点と相関が報告されている。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">Code-Dev mode</div>
+                    <div class="term-desc">PaperBench の評価モードの 1 つ。コードの<strong>静的な構造</strong>のみを評価し、実行はしない（GPU 不要）。「コードは正しそうに書けたか」までを測る。一方 Full mode は実行して数値一致まで見る。本プロジェクトは Code-Dev で評価。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">Stochastic Interpolants <code>arXiv:2310.03725</code></div>
+                    <div class="term-desc">PaperBench の対象論文の 1 つ。<strong>画像生成の手法</strong>。ノイズと画像の間を「補間」して滑らかに変化させ、ImageNet で FID という指標を改善する。本プロジェクトでは PaperBench 20 本のうち rubric が最小（94 ノード）= 一番扱いやすい論文として選択。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">FID（Frechet Inception Distance）</div>
+                    <div class="term-desc">画像生成の品質を測る代表的な指標。生成画像と本物画像の特徴量分布の距離。低いほど良い。Stochastic Interpolants 論文では「Dependent Coupling で FID 1.13」のような数値が主張されている。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">CIFAR-10 / CNN</div>
+                    <div class="term-desc">CIFAR-10 は 60,000 枚の小画像（32×32 ピクセル、10 クラス）で構成される機械学習の基本ベンチマーク。CNN（畳み込みニューラルネット）はその分類によく使われる標準モデル。本プロジェクトでは Self-Improving Agent の対象タスクとして使用。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">autoresearch（オートリサーチ）</div>
+                    <div class="term-desc">Andrej Karpathy（元 Tesla AI Director / OpenAI 共同創設者）が 2026/3 に公開した最小ループ。「LLM にコードを書き換えさせる → 実行 → 結果を評価 → また書き換えさせる」を無限に繰り返すだけ。これだけで nanoGPT を 11% 高速化したことで爆発的に注目され、74,500★ / 80+ 派生プロジェクトのエコシステムが形成されている。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">NRR（Negative Result Repository）</div>
+                    <div class="term-desc">本プロジェクトで自作した<strong>失敗実験のデータベース</strong>。autoresearch のような自動ループは「同じ方向の失敗」を繰り返しがち（例: 学習率を上げる提案を 4 回連続）。NRR は失敗パターンを構造化して保存し、新しい提案に対して <code>proceed / caution / avoid</code> を返す。Karpathy 本家・autoresearch-lite・miolini macOS 版の 3 つのフォークに統合済み。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">venv / Docker</div>
+                    <div class="term-desc">Python の依存関係を隔離する仕組み。<code>venv</code> はプロジェクトごとに Python 環境を分ける軽量な手段。<code>Docker</code> はもっと包括的で OS レベルから隔離するが、論文 <code>arXiv:2601.12811</code> によれば Docker でも完全な再現性は保証できない。本プロジェクトでは venv ベースで進めている。</div>
+                </div>
             </div>
         </section>
 
         <!-- ===================== §1 PaperBench Iter ===================== -->
         <section class="section" id="paperbench">
-            <h2><span class="num">§1</span> PaperBench Iteration</h2>
+            <h2><span class="num">§1</span> PaperBench Iteration — 再現コードを反復改善する</h2>
+
+            <div class="intro-box">
+                <strong>このコンポーネントは何か:</strong> AI が論文を再現するコードを書いた後、PaperBench の rubric で採点し、低スコアの項目を分析して改善版を再生成する、という<strong>反復改善ループ</strong>。1 回目より 2 回目、2 回目より 3 回目とスコアが伸びていく様子を実証する。
+            </div>
 
             <div class="task-card">
-                <div class="task-label">タスク</div>
-                <div class="task-text">論文（Stochastic Interpolants）の rubric（評価項目ツリー）に対して、生成したコードをどれだけ満たせるかを自動評価し、不足を分析して改善コードを再生成する。これを反復することで PaperBench スコアを伸ばす。</div>
+                <div class="task-label">具体的なタスク</div>
+                <div class="task-text">論文 <strong>Stochastic Interpolants（画像生成手法）</strong> に対して、Claude が再現コードを書く。<br>その code を PaperBench rubric（58 ノードの評価ツリー）で採点する。<br>低スコアのノードを分析して改善版コードを Claude に再生成させる。これを反復してスコアが伸びるか検証する。</div>
             </div>
 
             <div class="method-block">
                 <h4>提案手法 — generate-then-iterate</h4>
-                <p>多くの再現エージェントは「1 回コードを生成 → 評価」で止まる。我々は<strong>「生成 → 評価 → 失敗分析 → 改善コード生成」を反復する</strong>ことでスコアを引き上げる。</p>
+                <p>多くの再現エージェント（DeepCode、IterativeAgent 等）は「1 回コードを生成 → 評価」で止まります。我々は <strong>「生成 → 評価 → 失敗分析 → 改善コード生成」を反復する</strong> ことでスコアを引き上げます。背景の問題意識:</p>
+                <ul>
+                    <li>業界の再現エージェントは 1-shot 生成が主流で、PaperBench Code-Dev で 43-75% に頭打ち</li>
+                    <li>人間の研究者は「初稿 → 動かして直す → また直す」と反復して仕上げる</li>
+                    <li>AI も同じことをすればスコアは伸びるはず（仮説）</li>
+                </ul>
 
-                <h4>各反復のステップ</h4>
+                <h4>1 反復のステップ</h4>
                 <ol class="flow-steps">
-                    <li><strong>Stage 2（Code Finding）</strong>で論文に対する初期コードを生成（v0 baseline）</li>
-                    <li>PaperBench 公式の <code>SimpleJudge</code>（claude-sonnet-4 ベース）が rubric の 58 ノードを採点</li>
-                    <li><strong>低スコアのノード</strong>を抽出し、その reasoning を読んで「何が足りなかったか」を特定</li>
-                    <li>論文と既存コードを Claude に再投入して<strong>改善コードを生成</strong>（v1, v2）</li>
-                    <li>再評価 → スコア推移を記録</li>
+                    <li><strong>初期コードを生成</strong>: Reproduce Pipeline の Stage 2（Code Finding）で Claude が論文記述だけからコードを書く（v0 = baseline）</li>
+                    <li><strong>PaperBench で採点</strong>: SimpleJudge（claude-sonnet-4）が 58 ノードの rubric を 0〜100 で採点。<code>0-25 / 26-50 / 51-75 / 76-100</code> の 4 段階で集計</li>
+                    <li><strong>低スコアノードを抽出</strong>: スコアが低かった項目とその reasoning（「なぜ低かったか」の説明）を集める</li>
+                    <li><strong>改善コードを生成</strong>: 論文 + 既存コード + 低スコアの分析結果を Claude に渡し、改善版を作らせる（v1, v2）</li>
+                    <li><strong>再採点</strong>: 同じ rubric で新コードを採点。スコア推移を記録</li>
                 </ol>
 
-                <h4>各反復で具体的に変えたこと</h4>
+                <h4>各反復で具体的に変えたこと（Stochastic Interpolants の例）</h4>
                 <table class="kv-table">
-                    <thead><tr><th>反復</th><th>主な変更点</th></tr></thead>
+                    <thead><tr><th>反復</th><th>主な変更点（人間が見ても分かるレベルで）</th></tr></thead>
                     <tbody>
-                        <tr><td>v0 → v1</td><td>ImageNet データセットアクセス（HuggingFace）/ 64-tile マスク戦略 / 結合公式の修正 / step ベース訓練（200,000 steps）/ クラス条件付け</td></tr>
-                        <tr><td>v1 → v2</td><td>Dopri5 ODE ソルバの復元（torchdiffeq）/ FID 評価コード追加 / 超解像のダウンサンプリング処理 / Uncoupled モデルの分離 / ODE 関数のラッピング</td></tr>
+                        <tr><td>v0 → v1</td><td>ImageNet データを HuggingFace から取得するように変更 / 64-tile マスク戦略の実装 / step ベース訓練（200,000 ステップ）に変更 / クラス条件付けを追加</td></tr>
+                        <tr><td>v1 → v2</td><td>論文指定の Dopri5 ODE ソルバ（torchdiffeq）に切替 / FID 評価コード追加 / Uncoupled モデルの分離 / ODE 関数のラッピング修正</td></tr>
                     </tbody>
                 </table>
 
-                <h4>評価方法</h4>
-                <p>PaperBench 公式の hierarchical scoring を使用。58 ノードのツリーで、各ノードに重みが付き、子ノードのスコアが親に伝播する。<code>0-25 / 26-50 / 51-75 / 76-100</code> の 4 段階で集計。</p>
-
                 <h4>結果が示すこと</h4>
                 <ul>
-                    <li>1 回生成（v0）の 43.2% は IterativeAgent o1-high 平均 43.4% とほぼ同等。<strong>初期生成は SOTA レベル</strong></li>
-                    <li>2 回反復（v2）の 94.5% は同論文において SOTA を超える結果（ただし最易論文1本での結果なので公平な比較ではない）</li>
-                    <li><strong>「反復改善ループは効く」</strong>ことの単一論文での実証。残課題は他論文での再現性確認</li>
+                    <li><strong>v0 = 43.2%</strong>: 1 回生成だけで IterativeAgent o1-high の 20 本平均（43.4%）とほぼ同等。「初期生成は SOTA レベル」</li>
+                    <li><strong>v2 = 94.5%</strong>: 2 回反復で同じ論文に対し SOTA を超える</li>
+                    <li><strong>反復改善ループは効く</strong>ことの単一論文での実証 ✓</li>
                 </ul>
+
+                <div class="callout">
+                    <strong>注意:</strong> 94.5% は最易論文（94 ノード）1 本の結果。SOTA の数字は 20 本平均なので公平な比較ではない。残課題は「他論文・他ドメインでも同じ伸びが見られるか」の検証。
+                </div>
             </div>
         </section>
 
         <!-- ===================== §2 Self-Improving Agent ===================== -->
         <section class="section" id="self-improving">
-            <h2><span class="num">§2</span> Self-Improving Agent</h2>
+            <h2><span class="num">§2</span> Self-Improving Agent — モデルを自動で改善し続ける</h2>
+
+            <div class="intro-box">
+                <strong>このコンポーネントは何か:</strong> 弱い CIFAR-10 分類モデルを与えると、Claude が <code>train.py</code>（訓練スクリプト）を自動で書き換えて再訓練し、精度を改善し続ける<strong>自己改善ループ</strong>。Karpathy の autoresearch を発展させ、失敗履歴の管理（NRR）と退行時の自動ロールバックを追加した最小実装。
+            </div>
 
             <div class="task-card">
-                <div class="task-label">タスク</div>
-                <div class="task-text">CIFAR-10 の弱いベースライン CNN（精度 65-70%）を、人手の介入なしに改善し続けて 85%+ を目指す。Claude が訓練スクリプトそのものを書き換える方式。</div>
+                <div class="task-label">具体的なタスク</div>
+                <div class="task-text">CIFAR-10（32×32 ピクセル画像 10 クラス分類）で、わざと弱い CNN（テスト精度 65-70%）から始める。<br>人手の介入なしに <code>train.py</code> を自動で書き換えて、85%+ に伸ばすことを目指す。「止まらない研究エージェント」の最小プロトタイプ。</div>
             </div>
 
             <div class="method-block">
-                <h4>提案手法 — 24/365 自己改善ループ</h4>
-                <p>Karpathy の <code>autoresearch</code>（edit → execute → measure → evaluate のループ）を発展させ、<strong>失敗履歴を構造化（NRR）</strong> + <strong>退行時の自動ロールバック</strong>を加えた最小実装。</p>
+                <h4>提案手法 — autoresearch + NRR + rollback</h4>
+                <p>Karpathy の <code>autoresearch</code>（edit → execute → measure → evaluate のループ）は「動く」が、長く回すと<strong>同じ失敗方向を繰り返す</strong>傾向があります（LLM の弱点）。本コンポーネントは 3 つの拡張で対処:</p>
+                <ul>
+                    <li><strong>NRR 統合</strong>: 失敗実験を構造化保存。新提案に対して <code>proceed / caution / avoid</code> を返し、<code>avoid</code> なら別方向を強制</li>
+                    <li><strong>自動ロールバック</strong>: 精度が best から大きく退行したら、自動で best チェックポイントに戻す</li>
+                    <li><strong>提案カテゴリの強制多様化</strong>: scheduler / regularization / architecture / optimizer / augmentation / other の 6 種類から偏らずに選ばせる</li>
+                </ul>
 
                 <h4>1 サイクルの流れ</h4>
                 <ol class="flow-steps">
-                    <li>現在の <code>train.py</code> で訓練 → CIFAR-10 テスト精度・損失を測定</li>
-                    <li>Claude が<strong>失敗分析</strong>（精度が伸びない理由）し、改善案を提案</li>
-                    <li><strong>NRR（Negative Result Repository）</strong>が過去の失敗パターンを照合し、<code>proceed / caution / avoid</code> の判定を返す</li>
-                    <li><code>avoid</code> なら別方向を再提案、<code>proceed</code> なら <code>train.py</code> を自動修正して再訓練</li>
-                    <li>精度が best から大きく退行したら <strong>best チェックポイントから自動ロールバック</strong></li>
-                    <li>結果を <code>cycle-NNNN.json</code> に記録、次サイクルへ</li>
+                    <li>現在の <code>train.py</code> で訓練（CPU で 1-3 分）→ CIFAR-10 テスト精度・損失を測定</li>
+                    <li>Claude が<strong>失敗分析</strong>: なぜこの精度なのか、どこを変えれば改善できそうか</li>
+                    <li>Claude が改善案を提案（カテゴリ + 具体的な diff）</li>
+                    <li>NRR が過去の類似失敗を照合: <code>proceed</code> / <code>caution</code> / <code>avoid</code> を返す。<code>avoid</code> なら別方向を Claude に再提案させる</li>
+                    <li><code>train.py</code> を自動修正して再訓練</li>
+                    <li>精度が best から大きく退行したら<strong>自動ロールバック</strong>。そうでなければ次サイクルへ</li>
+                    <li>結果（精度・損失・提案内容・diff）を <code>cycle-NNNN.json</code> に記録</li>
                 </ol>
 
-                <h4>提案カテゴリ（6 種類）</h4>
+                <h4>実際に走った 5 サイクル（結果ページの数字に対応）</h4>
+                <table class="kv-table">
+                    <thead><tr><th>サイクル</th><th>提案</th><th>結果</th></tr></thead>
+                    <tbody>
+                        <tr><td>1</td><td>StepLR スケジューラ追加</td><td>精度 0.6782（baseline）</td></tr>
+                        <tr><td>2</td><td>FC 層に dropout 追加</td><td>0.6861（+0.008）</td></tr>
+                        <tr><td>3</td><td>3 つ目の畳み込み層 + BatchNorm 追加</td><td>0.6224（<strong>退行</strong>、より深く=より弱い）</td></tr>
+                        <tr><td>4</td><td>BatchNorm を GroupNorm に置換</td><td><strong>0.6957（best）</strong></td></tr>
+                        <tr><td>5</td><td>4 つ目の畳み込み層追加</td><td>0.6416（<strong>退行</strong>、容量増やしすぎ）</td></tr>
+                    </tbody>
+                </table>
+
+                <h4>結果が示すこと（工学的知見）</h4>
                 <ul>
-                    <li><code>scheduler</code>（学習率スケジューラ）/ <code>regularization</code>（dropout、GroupNorm 等）/ <code>architecture</code>（層追加・置換）/ <code>optimizer</code>（Adam の係数調整等）/ <code>augmentation</code>（データ拡張）/ <code>other</code></li>
+                    <li><strong>毎サイクル改善するわけではない</strong>: 5 回中 2 回は退行。LLM が常に賢い提案をするわけではない</li>
+                    <li><strong>LLM の提案には偏りがある</strong>: 何度も同じ方向（深くする・容量増やす）を提案しがち。NRR が無いと延々と同方向で失敗を続ける</li>
+                    <li><strong>ロールバックが死活的</strong>: 退行を放置すると best が失われる。自動ロールバックがあれば「悪い試行は無害化」できる</li>
                 </ul>
 
-                <h4>NRR 統合の意義</h4>
-                <p>LLM は「同じ方向の失敗」を繰り返す傾向がある（例: 学習率を上げる提案を 4 サイクル連続）。NRR がそれを検出し、<code>avoid</code> シグナルで別方向に強制的に切り替える。これにより<strong>探索の多様性</strong>が確保される。</p>
-
-                <h4>結果が示すこと</h4>
-                <ul>
-                    <li>5 サイクルで精度が 0.6782 → 0.6957（best）まで改善（cycle 4）</li>
-                    <li>cycle 3 と 5 は<strong>退行</strong>（より深い CNN を提案したが弱体化）— ロールバックの必要性を体現</li>
-                    <li>「毎サイクル改善するわけではない」「LLM の提案には偏りがある」「NRR とロールバックがないと退行が積み上がる」<strong>3 つの工学的知見</strong>を取得</li>
-                    <li>残課題: プラトー検出の精緻化、長時間運用での挙動確認、ドメイン拡張</li>
-                </ul>
+                <div class="callout">
+                    <strong>「24/365 止まらないエージェント」のミニ版:</strong> いまは 5 サイクルで止めているが、原理的には永続ループ可能。CIFAR-10 を別タスク（PaperBench スコア改善 / 新手法提案）に置き換えれば、研究エージェントの土台になる。
+                </div>
             </div>
         </section>
 
         <!-- ===================== §3 Reproduce Pipeline ===================== -->
         <section class="section" id="reproduce">
-            <h2><span class="num">§3</span> Reproduce Pipeline</h2>
+            <h2><span class="num">§3</span> Reproduce Pipeline — arXiv URL から再現結果まで</h2>
+
+            <div class="intro-box">
+                <strong>このコンポーネントは何か:</strong> arXiv URL を 1 つ与えると、論文を解析 → コード取得・生成 → 環境構築 → 実行 → 数値検証までを自動でやる、<strong>5 ステージのパイプライン</strong>。人がやれば数時間〜1 日かかる作業を 3 分で完走する。
+            </div>
 
             <div class="task-card">
-                <div class="task-label">タスク</div>
-                <div class="task-text">arXiv URL を 1 つ与えるだけで、論文を解析し、コードを取得・生成し、環境を構築し、実行し、論文の数値と一致するか検証するまでを自動化する。「人がやれば 1 時間以上かかる作業」を end-to-end で実行する。</div>
+                <div class="task-label">具体的なタスク</div>
+                <div class="task-text">入力: arXiv URL（例: <code>https://arxiv.org/abs/2310.03725</code>）<br>出力: 再現コード + 実行結果 + 「論文の数値と一致したか」の検証レポート。<br>人間の介入なしに完走することを目指す。</div>
             </div>
 
             <div class="method-block">
-                <h4>提案手法 — 5 ステージのパイプライン</h4>
-                <p>研究自動化の最大ボトルネックは <strong>環境構築（成功率 &lt; 7% / EnvBench）</strong> と <strong>実行検証（成功率 0% / PRBench end-to-end）</strong>。これを 5 ステージに分解し、各ステージで何が起きているかを観測可能にする。</p>
+                <h4>背景の問題意識</h4>
+                <p>研究自動化の最大ボトルネックは <strong>環境構築</strong>（成功率 &lt; 7% / EnvBench）と <strong>実行検証</strong>（end-to-end 数値一致 0% / PRBench）です。コード生成自体（PaperBench Code-Dev で 75% 程度）はかなり commoditize していますが、実際に動かして論文の数値が出るところは未解決の領域です。本コンポーネントはこのパイプライン全体を観測可能にし、どこで何が起きているかを分解します。</p>
 
-                <h4>5 ステージの設計判断</h4>
+                <h4>5 ステージの設計</h4>
                 <ol class="flow-steps">
-                    <li><strong>Paper Fetching</strong>（〜15秒） — arXiv API で PDF 取得 → Claude が方法論・claims・hyperparameters を抽出。<em>なぜ Claude か</em>: 構造化抽出が LLM 得意領域、ヒューリスティックパーサーより堅牢</li>
-                    <li><strong>Code Finding</strong>（〜90秒） — 公式 GitHub があればクローン、なければ Claude が論文記述から実装を生成（DeepCode/AIDE と類似のフォールバック）。<em>なぜ生成 fallback</em>: 論文の 60-70% は公開コード無し or 部分的</li>
-                    <li><strong>Environment Building</strong>（〜0.3秒、Stochastic Interpolants では venv 即構築） — Python venv + 依存解決。<em>なぜ Docker 不採用</em>: arXiv 2601.12811 が「Docker でも再現性は保証されない」と示しているため、まず venv で進める</li>
-                    <li><strong>Experiment Execution</strong>（〜56秒） — 訓練スクリプトを実行、GPU/CPU 自動判定、stdout/stderr を構造化キャプチャ</li>
-                    <li><strong>Result Verification</strong>（&lt;1秒） — Claude が論文の Table/Figure から数値を抽出 → 実行結果の metrics と <code>±5%</code> 許容で比較。一致しなければ理由を記録</li>
+                    <li><strong>Paper Fetching（論文取得・解析）</strong> 〜15 秒<br>arXiv API で PDF 取得 → Claude が方法論・claims（主張する数値）・hyperparameters を構造化抽出。<span class="why">なぜ Claude か: 構造化抽出は LLM が得意、ヒューリスティックパーサーより堅牢。</span></li>
+                    <li><strong>Code Finding（コード取得・生成）</strong> 〜90 秒<br>論文に公式 GitHub があればクローン、なければ Claude が論文記述から実装を生成。<span class="why">なぜ生成 fallback: 論文の 60-70% は公開コード無し or 部分的のため、生成パスが必要。</span></li>
+                    <li><strong>Environment Building（環境構築）</strong> 〜0.3 秒<br>Python venv 作成 + 依存解決。<span class="why">なぜ Docker 不採用: arXiv:2601.12811 が「Docker でも完全な再現性は保証されない」と示している。まず軽量な venv で進める。</span></li>
+                    <li><strong>Experiment Execution（実験実行）</strong> 〜56 秒<br>訓練スクリプトを実行、GPU/CPU 自動判定、stdout/stderr を構造化キャプチャ</li>
+                    <li><strong>Result Verification（数値検証）</strong> &lt;1 秒<br>Claude が論文の Table/Figure から数値を抽出 → 実行結果の metrics と <code>±5%</code> 許容で比較。一致しなければ理由を記録</li>
                 </ol>
 
-                <h4>Code Finding が長い理由</h4>
-                <p>5 ステージ中、Code Finding が <strong>56%</strong>（90秒 / 161秒）を占める。これは Claude が論文を読んで一からコードを生成するため。公式コードが存在する場合は数秒で済むが、Stochastic Interpolants では生成 fallback を選択。</p>
+                <h4>Stochastic Interpolants での実走 — 161 秒で完走</h4>
+                <p>5 ステージ全て成功で、<strong>合計 161 秒</strong>。人手なら数時間の作業がエージェント単独で完了。ただし<strong>再現スコアは 0.5</strong>（後述）。</p>
+
+                <h4>Code Finding が時間の 56% を占める理由</h4>
+                <p>Stochastic Interpolants には公式 GitHub があるが、Claude による生成 fallback を選択したため、論文を読んで一からコードを書く時間（90 秒）が長くなった。公式コードをクローンする選択肢なら数秒で済む。これは設計上のトレードオフ（生成精度 vs 速度）。</p>
 
                 <h4>結果が示すこと</h4>
                 <ul>
-                    <li>5 ステージ全て成功、合計 161 秒で完走（人手なら数時間）</li>
-                    <li>再現スコア 0.5（3 claims のうち FID 数値が <code>untested</code>＝実行出力に該当 metric が無かった）</li>
-                    <li><strong>環境構築・実行は通った</strong>が、<strong>数値完全一致は未達</strong>。これは EnvBench/PRBench で示された業界全体のギャップと一致</li>
-                    <li>残課題: Stage 2 のコード生成精度（PaperBench iter で +51.3pp 改善実証済み）、Stage 5 の数値抽出強化、GPU 環境対応</li>
+                    <li>5 ステージ全て成功・合計 161 秒で完走 ✓</li>
+                    <li>再現スコア 0.5: 3 つの数値主張のうち <code>untested</code>（実行出力に該当 metric が無かった）が多かった</li>
+                    <li>つまり <strong>「動かすところまでは行った」が「数値完全一致は未達」</strong>。これは EnvBench / PRBench で示された業界全体のギャップと一致</li>
+                    <li>残課題: Stage 2（コード生成精度）は §1 PaperBench Iter で +51.3pp 改善できることを実証済み。Stage 5（数値抽出）は強化が必要</li>
                 </ul>
             </div>
         </section>
 
         <!-- ===================== §4 Literature Scout ===================== -->
         <section class="section" id="literature-scout">
-            <h2><span class="num">§4</span> Literature Scout</h2>
+            <h2><span class="num">§4</span> Literature Scout — 関連論文の自動発見</h2>
+
+            <div class="intro-box">
+                <strong>このコンポーネントは何か:</strong> 「自分の研究テーマに関連する論文を探したい」と思った瞬間に、<strong>クエリ + 進行中研究のコンテキスト</strong>を渡すと 30〜60 秒で関連度ランクされた論文リストを返す CLI ツール。
+            </div>
 
             <div class="task-card">
-                <div class="task-label">タスク</div>
-                <div class="task-text">「自分の研究テーマに関連する論文を探したい」という瞬間に、自然言語クエリ + 進行中の研究コンテキストを渡すと、関連度ランクされた論文リストを 30 秒程度で返す。</div>
+                <div class="task-label">具体的なタスク</div>
+                <div class="task-text">入力例: <code>"self-improving ML agents" --context "Building a system that autonomously improves model performance"</code><br>出力: 関連度（0.0〜1.0）+ 判断理由付きの論文カード（5〜10 件）<br>所要時間: 30〜60 秒</div>
             </div>
 
             <div class="method-block">
-                <h4>提案手法 — pull 型の論文発見</h4>
-                <p>既存の Intel システム（5 collectors / 日次 210+件）は <strong>push 型</strong>（自動収集）。Scout は <strong>pull 型</strong>（オンデマンド検索）。両者を使い分ける設計。</p>
+                <h4>背景: push 型 vs pull 型の文献調査</h4>
+                <p>本プロジェクトには既に Intel という<strong>push 型</strong>の自動収集システムがあり、5 つのコレクターが日次で 200+ 件の論文・ブログを収集しています。これは「毎日勝手に入ってくる」ストリーム型。</p>
+                <p>一方 Literature Scout は <strong>pull 型</strong>: 「いま、この瞬間に、このトピックを深掘りたい」というオンデマンドの問いに応える道具。両者を使い分けます。</p>
 
                 <h4>動作の流れ</h4>
                 <ol class="flow-steps">
-                    <li>クエリ + 任意の <code>--context</code>（進行中研究の説明）を入力</li>
-                    <li><strong>arXiv API と Semantic Scholar API を並列呼出</strong>（別ソースで取りこぼし防止）</li>
+                    <li>ユーザーが自然言語クエリ + 任意の <code>--context</code>（進行中研究の説明）を入力</li>
+                    <li><strong>arXiv API と Semantic Scholar API を並列呼出</strong>（同じクエリでも取れる論文集合が大きく異なるため、両方叩く）</li>
                     <li>各論文の title + abstract を Claude に渡す</li>
-                    <li>Claude が <code>--context</code> に対する<strong>関連度（0.0 〜 1.0）+ 判断理由</strong>を出力</li>
+                    <li>Claude が <code>--context</code> に対する<strong>関連度（0.0〜1.0）+ 判断理由</strong>を出力</li>
                     <li>関連度でソート、上位 N 件を CLI 出力</li>
                 </ol>
 
-                <h4>なぜ並列検索か</h4>
-                <p>arXiv は preprint 中心、Semantic Scholar は引用ネットワーク中心。<strong>同じクエリで取れる論文集合が大きく異なる</strong>。両方叩いて重複を除去することで取りこぼしを最小化。</p>
+                <h4>なぜ 2 ソース並列か</h4>
+                <p>arXiv は preprint（査読前）中心で機械学習の最新動向に強い。Semantic Scholar は引用ネットワークと意味検索が強く、「同じトピックで似た論文」を取りやすい。<strong>同じクエリで取れる論文集合が大きく異なる</strong>ので、両方叩いて重複除去するのが取りこぼしを最小化する設計です。</p>
 
-                <h4>Claude による関連度判定</h4>
-                <p>title + abstract だけでは「関連あり」と「真に役立つ」の区別が難しい。<code>--context</code>（例: 「ML 実験を自律実行して精度改善するシステム」）を Claude に渡すことで、<strong>「この研究文脈で読む価値があるか」</strong>を判定する。判断理由も同時に出力されるので、なぜ関連と判定したかが透明。</p>
+                <h4>Claude による関連度判定が効く理由</h4>
+                <p>title + abstract のキーワードマッチだけでは「関連あり」と「真に役立つ」の区別が難しい。<code>--context</code> として「ML 実験を自律実行して精度改善するシステムを作っている」のような文脈を Claude に渡すと、<strong>「この研究文脈で読む価値があるか」</strong>を判定してくれます。判断理由（reasoning）も同時に出るので、なぜ関連と判定したかが透明です。</p>
 
                 <h4>結果が示すこと</h4>
                 <ul>
-                    <li>30〜60秒で関連論文リストが返る（API 呼び出し + Claude 分析）</li>
-                    <li>Intel（push）と Scout（pull）の使い分けで「毎日勝手に入ってくる」+「気になった瞬間に深掘れる」が成立</li>
-                    <li>残課題: relevance 判定の精度評価、autoresearch の <code>program.md</code> 自動更新との連携</li>
+                    <li>30〜60 秒で関連論文リストが返る（API 呼び出し + Claude 分析の合計）</li>
+                    <li>Intel（push）と Scout（pull）の使い分けで「毎日勝手に入ってくる」+「気になった瞬間に深掘れる」が両立</li>
+                    <li>残課題: 関連度判定の精度評価、autoresearch の <code>program.md</code>（次に試すべき手法リスト）への自動追記との連携</li>
                 </ul>
 
-                <div class="note-box">
-                    <strong>注意:</strong> 本ショーケースのライブ取得は、arXiv 429（rate limit）と Semantic Scholar 0 件返却で当面動かない。代表的な擬似サンプル出力を <a href="./index.html#literature-scout">結果ページ §4</a> に表示している。
+                <div class="callout">
+                    <strong>注意:</strong> 本ショーケースのライブ取得は、arXiv が rate limit（429）を返し、Semantic Scholar が一時的に 0 件返却で当面動かない状態。代表的な擬似サンプル出力を <a href="./index.html#literature-scout">結果ページ §4</a> に表示しています。
                 </div>
             </div>
         </section>
 
         <!-- ===================== §5 まとめ ===================== -->
         <section class="section" id="summary">
-            <h2><span class="num">§5</span> 4 コンポーネントの関係</h2>
+            <h2><span class="num">§5</span> 4 コンポーネントの関係 — 個別と統合</h2>
 
             <div class="method-block">
-                <h4>個別運用 vs 統合運用</h4>
-                <p>4 つはそれぞれ単独で価値を生む CLI ツール。一方、組み合わせると<strong>「論文発見 → 再現 → スコア評価 → 反復改善」</strong>の end-to-end ループになる。</p>
+                <p>4 つはそれぞれ単独で動く独立した CLI ツールですが、<strong>組み合わせると研究の end-to-end ループ</strong>になります。</p>
 
+                <h4>シナリオ別の使い分け</h4>
                 <table class="kv-table">
-                    <thead><tr><th>シナリオ</th><th>使うコンポーネント</th></tr></thead>
+                    <thead><tr><th>やりたいこと</th><th>使うコンポーネント</th></tr></thead>
                     <tbody>
-                        <tr><td>新トピックの論文を探したい</td><td>Literature Scout</td></tr>
-                        <tr><td>気になる論文を再現したい</td><td>Reproduce Pipeline</td></tr>
-                        <tr><td>再現コードを SOTA レベルに引き上げたい</td><td>PaperBench Iter</td></tr>
-                        <tr><td>新しいモデル/ハイパラを自動探索したい</td><td>Self-Improving Agent</td></tr>
-                        <tr><td>上記を全部つなげて止まらない研究エージェントにしたい</td><td>4 つ全てを統合（=「24/365 研究エージェント」の最終形）</td></tr>
+                        <tr><td>新トピックの論文を探したい</td><td>① Literature Scout</td></tr>
+                        <tr><td>気になる論文を再現したい</td><td>② Reproduce Pipeline</td></tr>
+                        <tr><td>再現コードを SOTA レベルに引き上げたい</td><td>③ PaperBench Iter</td></tr>
+                        <tr><td>新しいモデル / ハイパラを自動で探させたい</td><td>④ Self-Improving Agent</td></tr>
+                        <tr><td>上記を全部つなげて止まらない研究エージェントにしたい</td><td>4 つを統合運用（最終形）</td></tr>
                     </tbody>
                 </table>
 
-                <h4>残された大きな課題</h4>
+                <h4>統合運用イメージ</h4>
+                <ol class="flow-steps">
+                    <li>Literature Scout で「最近の self-improving ML 系の重要論文」を取得</li>
+                    <li>Reproduce Pipeline でそれを再現してみる</li>
+                    <li>PaperBench Iter で再現コードを SOTA レベルまで磨く</li>
+                    <li>Self-Improving Agent でハイパラ・アーキテクチャを自動探索</li>
+                    <li>結果を新しい知見として蓄積、ループ</li>
+                </ol>
+
+                <h4>残された大きな課題（AutoRes グループとして取り組みたい領域）</h4>
                 <ul>
-                    <li><strong>環境構築の堅牢化</strong>（業界全体で 7% 未満、ここは未踏領域）</li>
-                    <li><strong>数値結果の検証強化</strong>（PRBench end-to-end は 0%）</li>
-                    <li><strong>暗黙知の補完</strong>（論文に書かれない関係的・身体的・集団的知識）</li>
-                    <li><strong>長時間運用</strong>（24/365 ループの安定性、メモリ管理、コスト管理）</li>
+                    <li><strong>環境構築の堅牢化</strong>: 業界全体で 7% 未満の成功率。最大のボトルネック。Docker や仮想化を超えた解が必要</li>
+                    <li><strong>数値結果の検証強化</strong>: PRBench end-to-end は 0%。論文の Table/Figure から正確に数値を取り出し、実行出力と比較する仕組みが弱い</li>
+                    <li><strong>暗黙知の補完</strong>: 論文に書かれない関係的・身体的・集団的知識（コード作者と話さないと分からない細部）</li>
+                    <li><strong>長時間運用の安定性</strong>: 24/365 ループのメモリ管理、コスト管理、ドリフト検出</li>
                 </ul>
 
-                <p style="margin-top:18px;color:#555;font-size:13.5px;">これらは AutoRes グループとして次の 12-18 ヶ月で取り組むべき領域。各コンポーネントは個別に磨きつつ、統合運用への橋渡しを進めていく。</p>
+                <p style="margin-top:18px;color:#555;font-size:13.5px;">これらは AutoRes グループとして次の 12〜18 ヶ月で取り組むべき領域です。各コンポーネントを個別に磨きつつ、統合運用への橋渡しを進めていきたいと考えています。</p>
             </div>
         </section>
 

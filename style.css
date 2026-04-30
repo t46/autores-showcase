@@ -667,3 +667,65 @@ footer .gen-time {
 @media (max-width: 720px) {
     .kv-table th { width: auto; }
 }
+
+/* ---------------- glossary / term boxes ---------------- */
+.term-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+.term-card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.term-card .term-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0066cc;
+    margin-bottom: 4px;
+}
+.term-card .term-name code {
+    font-size: 12px;
+    background: transparent;
+    padding: 0;
+    color: #555;
+    margin-left: 6px;
+}
+.term-card .term-desc {
+    font-size: 13px;
+    line-height: 1.65;
+    color: #444;
+}
+
+.intro-box {
+    background: #f0f4ff;
+    border: 1px solid #c7d8ff;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 12px 0 18px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1a1a1a;
+}
+.intro-box strong { color: #0066cc; }
+
+.callout {
+    background: #fafafa;
+    border-left: 3px solid #0066cc;
+    padding: 10px 14px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: #444;
+    border-radius: 0 4px 4px 0;
+}
+
+.method-block .why {
+    color: #777;
+    font-style: italic;
+    font-size: 13px;
+    margin-top: 4px;
+}
