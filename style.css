@@ -424,10 +424,24 @@ tr.highlight td:first-child::before { content: "★ "; color: #f9a825; }
     margin: 8px 0;
     font-size: 13px;
 }
+.claim.claim-structured {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    padding: 14px 18px;
+    border-left: 4px solid #888;
+}
+.claim.claim-structured.passed { border-left-color: #2e7d32; }
+.claim.claim-structured.failed { border-left-color: #c62828; }
+.claim.claim-structured.untested { border-left-color: #f9a825; }
 .claim .claim-head {
     display: flex;
     justify-content: space-between;
     margin-bottom: 6px;
+}
+.claim .claim-metric {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a1a;
 }
 .claim .claim-status {
     font-size: 11px;
@@ -446,9 +460,97 @@ tr.highlight td:first-child::before { content: "★ "; color: #f9a825; }
 }
 .claim .claim-numbers {
     margin-top: 6px;
-    font-size: 12px;
-    color: #666;
+    font-size: 13px;
+    color: #444;
 }
+.claim .claim-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 8px 0;
+    font-size: 12.5px;
+    color: #555;
+}
+.claim .claim-meta span { white-space: nowrap; }
+.claim .claim-comparison {
+    font-size: 12.5px;
+    color: #666;
+    background: #fafafa;
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+}
+.claim .claim-status-jp {
+    font-size: 13px;
+    color: #f9a825;
+    margin-top: 8px;
+    font-weight: 600;
+}
+.claim.passed .claim-status-jp { color: #2e7d32; }
+.claim.failed .claim-status-jp { color: #c62828; }
+.claim .claim-reason {
+    font-size: 12.5px;
+    color: #555;
+    margin-top: 6px;
+    padding-left: 12px;
+    border-left: 2px solid #e5e5e5;
+}
+
+/* breakdown row */
+.breakdown-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+}
+.breakdown-cell {
+    background: #fafafa;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #555;
+}
+.breakdown-cell.passed { border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; }
+.breakdown-cell.failed { border-color: #c62828; color: #c62828; background: #ffebee; }
+.breakdown-cell.untested { border-color: #f9a825; color: #b76e00; background: #fff8e1; }
+.breakdown-cell.total { font-weight: 600; }
+
+/* stage row Japanese caption */
+.stage-row .stage-jp {
+    font-size: 12.5px;
+    color: #555;
+    margin-top: 4px;
+    line-height: 1.6;
+    padding-left: 0;
+    background: #f0f4ff;
+    border-left: 2px solid #0066cc;
+    padding: 4px 8px;
+    border-radius: 0 4px 4px 0;
+    margin-top: 6px;
+}
+
+/* data flow list */
+.data-flow-list {
+    list-style: none;
+    margin: 12px 0;
+    padding: 0;
+}
+.data-flow-list li {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-radius: 6px;
+    margin: 4px 0;
+    font-size: 13.5px;
+}
+.data-flow-list .df-step {
+    font-weight: 600;
+    color: #0066cc;
+}
+.data-flow-list .df-value { color: #444; }
 
 /* ---------------- §4 literature-scout ---------------- */
 .concept-flow {

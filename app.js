@@ -287,31 +287,82 @@
             },
         });
 
-        // timeline
+        // timeline (with Japanese caption)
         const tl = $('stage-timeline');
         for (const s of stages) {
-            const li = el('li');
+            const li = el('li', { class: 'stage-row' });
             li.appendChild(el('span', { class: 'stage-indicator' + (s.success ? '' : ' fail') }));
-            li.appendChild(el('div', {}, [
-                el('div', { class: 'stage-name', text: s.name }),
-                el('div', { class: 'stage-msg', text: s.message }),
-            ]));
+            const body = el('div');
+            body.appendChild(el('div', { class: 'stage-name', text: s.name }));
+            body.appendChild(el('div', { class: 'stage-msg', text: '生ログ: ' + (s.message || '—') }));
+            if (s.jp_caption) {
+                body.appendChild(el('div', { class: 'stage-jp', text: '解説: ' + s.jp_caption }));
+            }
+            li.appendChild(body);
             li.appendChild(el('span', { class: 'stage-dur', text: s.duration.toFixed(2) + 's' }));
             tl.appendChild(li);
         }
 
-        // claims
+        // breakdown summary
+        const bd = d.claim_breakdown;
+        if (bd) {
+            const bdHost = $('rp-breakdown');
+            if (bdHost) {
+                bdHost.innerHTML = `
+                    <div class="breakdown-row">
+                        <span class="breakdown-cell passed"><strong>${bd.passed}</strong> 件 一致</span>
+                        <span class="breakdown-cell failed"><strong>${bd.failed}</strong> 件 不一致</span>
+                        <span class="breakdown-cell untested"><strong>${bd.untested}</strong> 件 未検証</span>
+                        <span class="breakdown-cell total">全 <strong>${bd.total}</strong> 件</span>
+                    </div>
+                    <p style="font-size:13.5px;color:#444;margin-top:10px;line-height:1.7;">${bd.explanation}</p>
+                `;
+            }
+        }
+
+        // data flow
+        const dfHost = $('rp-data-flow');
+        if (dfHost && d.data_flow) {
+            const ul = el('ul', { class: 'data-flow-list' });
+            for (const f of d.data_flow) {
+                const li = el('li');
+                li.appendChild(el('span', { class: 'df-step', text: f.step }));
+                li.appendChild(el('span', { class: 'df-value', text: f.value }));
+                ul.appendChild(li);
+            }
+            dfHost.appendChild(ul);
+        }
+
+        // claims (structured)
         const ch = $('claims-list');
         for (const c of d.claims || []) {
-            const card = el('div', { class: 'claim' });
+            const card = el('div', { class: 'claim claim-structured ' + (c.status || '') });
+
             const head = el('div', { class: 'claim-head' });
-            head.appendChild(el('code', { text: c.description }));
+            head.appendChild(el('div', { class: 'claim-metric', text: c.metric || '?' }));
             head.appendChild(el('span', { class: 'claim-status ' + (c.status || ''), text: c.status || '' }));
             card.appendChild(head);
+
+            const meta = el('div', { class: 'claim-meta' });
+            if (c.dataset) meta.appendChild(el('span', { html: '<strong>データセット:</strong> ' + c.dataset }));
+            if (c.model_variant) meta.appendChild(el('span', { html: '<strong>モデル:</strong> ' + c.model_variant }));
+            if (c.table) meta.appendChild(el('span', { html: '<strong>出典:</strong> ' + c.table }));
+            card.appendChild(meta);
+
             const exp = c.expected != null ? c.expected : '—';
             const act = c.actual != null ? c.actual : '—';
-            card.appendChild(el('div', { class: 'claim-numbers', html: `期待値: <strong>${exp}</strong> / 実測値: <strong>${act}</strong>` }));
-            if (c.reason) card.appendChild(el('div', { class: 'claim-numbers', text: '理由: ' + c.reason }));
+            card.appendChild(el('div', { class: 'claim-numbers', html: `<strong>論文の主張値:</strong> ${exp} / <strong>実測値:</strong> ${act}` }));
+
+            if (c.comparison) {
+                card.appendChild(el('div', { class: 'claim-comparison', text: '論文中の比較: ' + c.comparison }));
+            }
+
+            if (c.status_jp) {
+                card.appendChild(el('div', { class: 'claim-status-jp', text: c.status_jp }));
+            }
+            if (c.reason_jp) {
+                card.appendChild(el('div', { class: 'claim-reason', text: '理由（解説）: ' + c.reason_jp }));
+            }
             ch.appendChild(card);
         }
     }

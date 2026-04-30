@@ -21,55 +21,117 @@
       "name": "Paper Fetching",
       "success": true,
       "duration": 15.26,
-      "message": "Successfully fetched and analyzed: Stochastic interpolants with data-dependent couplings"
+      "message": "Successfully fetched and analyzed: Stochastic interpolants with data-dependent couplings",
+      "jp_caption": "arXiv API で PDF を取得し、Claude が論文から方法論・主張する数値・ハイパラを構造化抽出した。"
     },
     {
       "name": "Code Finding",
       "success": true,
       "duration": 90.16,
-      "message": "Generated implementation from paper description"
+      "message": "Generated implementation from paper description",
+      "jp_caption": "公式 GitHub が見つからなかったため、Claude が論文記述を読んでゼロから実装を生成した（生成 fallback）。これが時間の 56% を占める理由。"
     },
     {
       "name": "Environment Building",
       "success": true,
       "duration": 0.29,
-      "message": "Environment built with pytorch framework"
+      "message": "Environment built with pytorch framework",
+      "jp_caption": "Python venv を作成し、pytorch などの依存関係を解決した。Docker は使っていない（軽量 venv で進める方針）。"
     },
     {
       "name": "Experiment Execution",
       "success": true,
       "duration": 55.69,
-      "message": "Execution completed in 55.7s"
+      "message": "Execution completed in 55.7s",
+      "jp_caption": "生成された訓練/推論スクリプトを実行し、stdout/stderr を構造化キャプチャ。56 秒で完走。"
     },
     {
       "name": "Result Verification",
       "success": true,
       "duration": 0.01,
-      "message": "Verified 3 claims. Score: 50.0%"
+      "message": "Verified 3 claims. Score: 50.0%",
+      "jp_caption": "Claude が論文の Table から数値主張を抽出し、実行結果の metrics と ±5% 許容で比較した。"
     }
   ],
   "claims": [
     {
-      "description": "{'metric': 'FID', 'value': '1.13', 'dataset': 'ImageNet inpainting', 'model_variant': 'Dependent Coupling', 'table': 'Table 2', 'comparison': 'vs 1.35 for Uncoupled Interpolant (Baseline)'}",
+      "description_raw": "{'metric': 'FID', 'value': '1.13', 'dataset': 'ImageNet inpainting', 'model_variant': 'Dependent Coupling', 'table': 'Table 2', 'comparison': 'vs 1.35 for Uncoupled Interpolant (Baseline)'}",
+      "metric": "FID",
+      "value": "1.13",
+      "dataset": "ImageNet inpainting",
+      "model_variant": "Dependent Coupling",
+      "table": "Table 2",
+      "comparison": "vs 1.35 for Uncoupled Interpolant (Baseline)",
       "status": "untested",
+      "status_jp": "未検証 — 実行出力に該当 metric が見つからず照合できなかった",
       "reason": "Metric 'fid' not found in execution output",
+      "reason_jp": "実行出力の中に 'fid' という metric が見つからなかった（FID 評価コードが Stage 4 で起動されていないか、出力フォーマットが違う）",
       "expected": 1.13,
       "actual": null
     },
     {
-      "description": "{'metric': 'FID-50k', 'value': '2.13', 'dataset': 'ImageNet 64x64 to 256x256 super-resolution (train)', 'model_variant': 'Dependent Coupling', 'table': 'Table 3'}",
+      "description_raw": "{'metric': 'FID-50k', 'value': '2.13', 'dataset': 'ImageNet 64x64 to 256x256 super-resolution (train)', 'model_variant': 'Dependent Coupling', 'table': 'Table 3'}",
+      "metric": "FID-50k",
+      "value": "2.13",
+      "dataset": "ImageNet 64x64 to 256x256 super-resolution (train)",
+      "model_variant": "Dependent Coupling",
+      "table": "Table 3",
+      "comparison": "",
       "status": "untested",
+      "status_jp": "未検証 — 実行出力に該当 metric が見つからず照合できなかった",
       "reason": "Metric 'fid-50k' not found in execution output",
+      "reason_jp": "実行出力の中に 'fid-50k' という metric が見つからなかった（FID 評価コードが Stage 4 で起動されていないか、出力フォーマットが違う）",
       "expected": 2.13,
       "actual": null
     },
     {
-      "description": "{'metric': 'FID-50k', 'value': '2.05', 'dataset': 'ImageNet 64x64 to 256x256 super-resolution (valid)', 'model_variant': 'Dependent Coupling', 'table': 'Table 3'}",
+      "description_raw": "{'metric': 'FID-50k', 'value': '2.05', 'dataset': 'ImageNet 64x64 to 256x256 super-resolution (valid)', 'model_variant': 'Dependent Coupling', 'table': 'Table 3'}",
+      "metric": "FID-50k",
+      "value": "2.05",
+      "dataset": "ImageNet 64x64 to 256x256 super-resolution (valid)",
+      "model_variant": "Dependent Coupling",
+      "table": "Table 3",
+      "comparison": "",
       "status": "untested",
+      "status_jp": "未検証 — 実行出力に該当 metric が見つからず照合できなかった",
       "reason": "Metric 'fid-50k' not found in execution output",
+      "reason_jp": "実行出力の中に 'fid-50k' という metric が見つからなかった（FID 評価コードが Stage 4 で起動されていないか、出力フォーマットが違う）",
       "expected": 2.05,
       "actual": null
     }
   ],
-  "_generated_at": "2026-04-30T08:22:12+00:00"
+  "claim_breakdown": {
+    "passed": 0,
+    "failed": 0,
+    "untested": 3,
+    "total": 3,
+    "explanation": "3 つの数値主張のうち、一致確認できたのは 0 件、不一致が 0 件、未検証（実行出力に metric が無かった）が 3 件。再現スコア 0.5 は '実行は完走したが数値の半分は確認できていない' 状態を表す。"
+  },
+  "data_flow": [
+    {
+      "step": "入力",
+      "value": "arXiv URL（例: 2310.03725）"
+    },
+    {
+      "step": "Stage 1 出力",
+      "value": "論文の主張する数値 + ハイパラ + 構造化メタデータ"
+    },
+    {
+      "step": "Stage 2 出力",
+      "value": "Python 実装コード（生成 fallback の場合は Claude が一から書いたもの）"
+    },
+    {
+      "step": "Stage 3 出力",
+      "value": "動く venv 環境（pytorch + torchdiffeq 等の依存解決済み）"
+    },
+    {
+      "step": "Stage 4 出力",
+      "value": "訓練/推論実行ログ + 出力 metrics（あれば）"
+    },
+    {
+      "step": "Stage 5 出力",
+      "value": "claim 検証結果（passed/failed/untested）+ 再現スコア"
+    }
+  ],
+  "_generated_at": "2026-04-30T08:26:54+00:00"
 }

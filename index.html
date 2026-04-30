@@ -149,12 +149,28 @@
             </div>
 
             <h3>③ 各ステージで何が起きたか</h3>
-            <p style="font-size:14px;color:#555;margin-bottom:8px;">緑のドット = 成功、赤 = 失敗。各ステージのメッセージは実行ログから取得。</p>
+            <p style="font-size:14px;color:#555;margin-bottom:8px;">緑のドット = 成功、赤 = 失敗。各ステージは「<strong>生ログ</strong>（パイプラインが出力したそのまま）」と「<strong>解説</strong>（日本語の補足）」の 2 段で表示しています。生ログが英語なのは実装上のもので、噛み砕き解説はその下にあります。</p>
             <ul class="stage-timeline" id="stage-timeline"></ul>
 
-            <h3>④ 主張の検証（論文の数値と実行結果の照合）</h3>
-            <p style="font-size:14px;color:#555;margin-bottom:8px;">論文の Table 2 と Table 3 から抽出した 3 つの数値主張（FID 値）に対して、実行結果と比較した結果。今回は <strong><code>untested</code></strong>（実行出力に該当 metric が見つからなかった）が並んでいます。これが「再現スコア 0.5」の中身です。</p>
+            <h3>④ 5 ステージのデータフロー</h3>
+            <p style="font-size:14px;color:#555;margin-bottom:8px;">各ステージで何が入力され、何が出力されたかの流れ。これを見ると「arXiv URL という 1 行の入力から、最後は数値検証結果まで」変換されている全体像が分かります。</p>
+            <div id="rp-data-flow"></div>
+
+            <h3>⑤ 主張の検証（論文の数値と実行結果の照合）</h3>
+            <p style="font-size:14px;color:#555;margin-bottom:8px;">論文の Table 2 / Table 3 から Claude が抽出した 3 つの数値主張（すべて FID = 画像生成品質指標）を、実行結果と照合した結果です。各カードは「<strong>論文側のどの数値か（metric / dataset / モデル / 出典 Table）</strong>」と「<strong>照合結果（一致 / 不一致 / 未検証）</strong>」を示しています。</p>
+
+            <h4>再現スコア 0.5 の中身</h4>
+            <p style="font-size:14px;color:#555;margin-bottom:8px;">「3 件中、何件が一致確認できたか」のサマリ。今回はすべて <strong>未検証</strong>（後述）でしたが、それでもスコアが 0 ではなく 0.5 なのは、PaperBench の hierarchical scoring がパイプラインの完走自体（実行成功）に部分点を与えているため。</p>
+            <div id="rp-breakdown" style="margin-bottom:18px;"></div>
+
+            <h4>各 claim の詳細</h4>
+            <p style="font-size:14px;color:#555;margin-bottom:8px;">下の各カードは「論文の Table から取った 1 つの数値主張 + その照合結果」です。<strong>未検証</strong>（黄色）になっているのは「実行スクリプトが該当 metric を出力していなかった」が原因 — 実装上は FID 評価コードが Stage 4 で起動されていない or 出力フォーマットが違うのが理由。これは <a href="./methods.html#paperbench">§1 PaperBench Iter</a> での反復改善ループで対処できる課題です（v2 で fid_score.py を追加して 94.5% 達成済み）。</p>
             <div class="claims-list" id="claims-list"></div>
+
+            <div class="callout" style="margin-top:20px;">
+                <strong>つまり何が言えるか:</strong> Reproduce Pipeline 単体では「動かすところまでは行ったが、論文の数値主張は未確認」という状態。これは EnvBench/PRBench で示されている業界全体のギャップ（環境構築 7%、end-to-end 数値一致 0%）と一致しています。
+                <strong>解決方向:</strong> Stage 2 のコード生成精度は <a href="./methods.html#paperbench">PaperBench Iter（§1）</a> で +51.3pp 改善できることを実証済み。Stage 5 の数値抽出はさらなる強化が必要。
+            </div>
         </section>
 
         <!-- ===================== §4 literature-scout ===================== -->

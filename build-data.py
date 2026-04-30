@@ -9,6 +9,7 @@ Outputs to ./data/{overview,paperbench,self-improving,reproduce,literature-scout
 Never crashes — missing inputs produce a stub with `_warning`.
 """
 from __future__ import annotations
+import ast
 import json
 import re
 from datetime import datetime, timezone
@@ -215,28 +216,78 @@ def build_reproduce() -> dict:
         return d
 
     pi = d.get("paper_info", {}) or {}
+
+    # 各ステージの英語 message を補完する日本語キャプション
+    stage_jp = {
+        "Paper Fetching": "arXiv API で PDF を取得し、Claude が論文から方法論・主張する数値・ハイパラを構造化抽出した。",
+        "Code Finding": "公式 GitHub が見つからなかったため、Claude が論文記述を読んでゼロから実装を生成した（生成 fallback）。これが時間の 56% を占める理由。",
+        "Environment Building": "Python venv を作成し、pytorch などの依存関係を解決した。Docker は使っていない（軽量 venv で進める方針）。",
+        "Experiment Execution": "生成された訓練/推論スクリプトを実行し、stdout/stderr を構造化キャプチャ。56 秒で完走。",
+        "Result Verification": "Claude が論文の Table から数値主張を抽出し、実行結果の metrics と ±5% 許容で比較した。",
+    }
+
     stages = []
     for s in d.get("stages", []) or []:
         if isinstance(s, dict):
+            name = s.get("name", "")
             stages.append({
-                "name": s.get("name", ""),
+                "name": name,
                 "success": bool(s.get("success", False)),
                 "duration": float(s.get("duration", 0) or 0),
                 "message": s.get("message", ""),
+                "jp_caption": stage_jp.get(name, ""),
             })
+
+    # claim status を日本語に翻訳
+    status_jp = {
+        "passed": "✓ 一致 — 論文の数値と ±5% 以内で一致",
+        "failed": "✗ 不一致 — 論文の数値と乖離",
+        "untested": "未検証 — 実行出力に該当 metric が見つからず照合できなかった",
+    }
 
     claims = []
     for c in d.get("claims", []) or []:
-        if isinstance(c, dict):
-            desc = c.get("description", "")
-            # description がしばしば dict-as-string なので軽く整形
-            claims.append({
-                "description": str(desc),
-                "status": c.get("status", ""),
-                "reason": c.get("reason", ""),
-                "expected": c.get("expected"),
-                "actual": c.get("actual"),
-            })
+        if not isinstance(c, dict):
+            continue
+        desc_raw = c.get("description", "")
+        # description は Python の dict を str() 化したもの。ast で安全に構造化
+        parsed = {}
+        if isinstance(desc_raw, str) and desc_raw.startswith("{"):
+            try:
+                parsed = ast.literal_eval(desc_raw)
+            except Exception:
+                parsed = {}
+        status = c.get("status", "")
+        reason_en = c.get("reason", "") or ""
+
+        # reason の英語を簡単な日本語に翻訳
+        reason_jp = ""
+        m = re.match(r"Metric '([^']+)' not found in execution output", reason_en)
+        if m:
+            reason_jp = f"実行出力の中に '{m.group(1)}' という metric が見つからなかった（FID 評価コードが Stage 4 で起動されていないか、出力フォーマットが違う）"
+        elif reason_en:
+            reason_jp = reason_en  # fallback
+
+        claims.append({
+            "description_raw": desc_raw,
+            "metric": parsed.get("metric", ""),
+            "value": parsed.get("value", ""),
+            "dataset": parsed.get("dataset", ""),
+            "model_variant": parsed.get("model_variant", ""),
+            "table": parsed.get("table", ""),
+            "comparison": parsed.get("comparison", ""),
+            "status": status,
+            "status_jp": status_jp.get(status, status),
+            "reason": reason_en,
+            "reason_jp": reason_jp,
+            "expected": c.get("expected"),
+            "actual": c.get("actual"),
+        })
+
+    # 再現スコアの内訳を集計
+    n_passed = sum(1 for c in claims if c["status"] == "passed")
+    n_failed = sum(1 for c in claims if c["status"] == "failed")
+    n_untested = sum(1 for c in claims if c["status"] == "untested")
 
     return {
         "title": "Reproduce Pipeline — arXiv URL から再現レポートまで",
@@ -252,6 +303,25 @@ def build_reproduce() -> dict:
         "status": d.get("status", ""),
         "stages": stages,
         "claims": claims,
+        "claim_breakdown": {
+            "passed": n_passed,
+            "failed": n_failed,
+            "untested": n_untested,
+            "total": len(claims),
+            "explanation": (
+                f"3 つの数値主張のうち、一致確認できたのは {n_passed} 件、不一致が {n_failed} 件、"
+                f"未検証（実行出力に metric が無かった）が {n_untested} 件。"
+                "再現スコア 0.5 は '実行は完走したが数値の半分は確認できていない' 状態を表す。"
+            ),
+        },
+        "data_flow": [
+            {"step": "入力", "value": "arXiv URL（例: 2310.03725）"},
+            {"step": "Stage 1 出力", "value": "論文の主張する数値 + ハイパラ + 構造化メタデータ"},
+            {"step": "Stage 2 出力", "value": "Python 実装コード（生成 fallback の場合は Claude が一から書いたもの）"},
+            {"step": "Stage 3 出力", "value": "動く venv 環境（pytorch + torchdiffeq 等の依存解決済み）"},
+            {"step": "Stage 4 出力", "value": "訓練/推論実行ログ + 出力 metrics（あれば）"},
+            {"step": "Stage 5 出力", "value": "claim 検証結果（passed/failed/untested）+ 再現スコア"},
+        ],
     }
 
 
