@@ -157,7 +157,7 @@
                 <li><a href="#improvements"><strong>§2 4 つのコード改善 — 何をどう直したか</strong></a> — 各改善のコード差分と効いたケース・効かなかったケース。</li>
                 <li><a href="#failure-cases"><strong>§3 失敗ケースの正直な開示</strong></a> — 改善後でも伸びなかった論文の理由 (arxiv_id 取り違え / Code-Dev mode の特性 / Claude 生成の確率性)。</li>
                 <li><a href="#meta-experiment"><strong>§4 並行実験 — agent に同じ問題を解かせる</strong></a> — 同じタスクを ARA に解かせた結果。 <em>(= 人間 +3.6pt / バグ 0 件 vs agent +24.3pp / バグ 4 件 の比較)</em></li>
-                <li><a href="#pipeline-rethink"><strong>§6 パイプラインレベル改善実験</strong></a> — 「再現はどうあるべきか」を 4 mode 横並び比較で問い直す (NEW)</li>
+                <li><a href="#pipeline-rethink"><strong>§6 パイプラインレベル改善実験</strong></a> — 「再現はどうあるべきか」を 4 mode 横並び比較で問い直す (NEW、rubric-aware は厳密には spec-disclosed reproduction であり、test-leakage に近い構造を持つ点を §6.5 で明示)</li>
                 <li><a href="#next-steps"><strong>§7 次の一手</strong></a> — まだ着手していないこと、次の方向性。</li>
             </ul>
         </section>
@@ -468,17 +468,49 @@ graph LR
             <h3 id="rethink-lessons"><span class="sub-num">§6.4</span> 学び — どの ought-to が効いたか</h3>
             <div id="rethink-lessons-body" style="font-size:14px;line-height:1.7;color:#333;"></div>
 
-            <!-- §6.5 残るもの -->
-            <h3 id="rethink-residue"><span class="sub-num">§6.5</span> 方法論として残るもの</h3>
+            <!-- §6.5 残るもの + 重要な caveat -->
+            <h3 id="rethink-residue"><span class="sub-num">§6.5</span> 方法論として残るもの — と重要な caveat</h3>
+
+            <div class="callout" style="background:#fff3e0;border-color:#fb8c00;">
+                <strong>⚠️ Caveat: rubric-aware mode は厳密には "rubric-disclosed reproduction"</strong>
+                <p style="font-size:14px;line-height:1.7;color:#333;margin-top:8px;">
+                    rubric-aware mode では、本来 judge が採点に使う <code>rubric.json</code> の leaf 要件を
+                    <strong>生成 prompt に事前に注入</strong> しています。これは ML 的な厳密な意味での
+                    「train で test set を使う」(モデルのパラメータを test ラベルで更新する) ではありません — Claude のパラメータは触っていません。
+                    しかし <strong>「採点される項目を agent に事前に見せている」という意味で test-disclosure / spec-disclosure</strong> ではあります。
+                    生成側と採点側がさらに <strong>同じモデルファミリ (claude-sonnet-4)</strong> なので、表現一致 (same-language matching) も起きやすい。
+                </p>
+                <p style="font-size:14px;line-height:1.7;color:#333;margin-top:8px;">
+                    したがって <strong>rubric-aware の絶対スコアを baseline / improved / ara-fixes と単純比較するのは不公平</strong> です。
+                    意味があるのは:
+                </p>
+                <ul style="font-size:13.5px;line-height:1.7;color:#333;margin:6px 0 0 22px;">
+                    <li><strong>ara-fixes vs baseline / improved</strong> — rubric-blind 同士の比較。 fix の純粋な効き方を測れる。</li>
+                    <li><strong>rubric-aware vs ara-fixes</strong> — 「rubric を見せた」効果の大きさを測れる。これが「spec-disclosed agent はどれだけ得をするか」を表す。</li>
+                </ul>
+                <p style="font-size:14px;line-height:1.7;color:#333;margin-top:8px;">
+                    benchmark 文脈では、rubric を見せること自体は <strong>PaperBench 公式が想定している使い方ではない</strong> 可能性が高く、
+                    厳密な leaderboard 比較は ara-fixes 以下のモードでのみ行うべきです。 rubric-aware は「もし spec を渡せたらどこまで上がるか」の上限値推定として読むのが安全です。
+                </p>
+            </div>
+
+            <h4 style="margin-top:20px;">それでも残る方法論</h4>
             <div class="callout">
                 <strong>「rubric は judge が何を見ているかを agent に教える教科書」</strong>:
-                Stage 2 prompt に rubric.json の leaf 要件を直接渡すという介入は、
-                論文 → コード生成の途中で「テストを先に見せる」ことに対応します。
-                <em>test-driven reproduction</em> という名前を付けてもよい設計原則です。<br><br>
+                上記 caveat を踏まえても、Stage 2 prompt に評価 metric の構造を渡すという介入は、
+                <em>spec-driven / test-driven reproduction</em> という設計原則として残ります。
+                ユーザが評価基準を持っている <strong>実用シナリオ</strong> (社内ドキュメントの再現、契約仕様への準拠) では rubric-disclosure に倫理的問題はありません。<br><br>
                 これは Reproduce Pipeline を超えて、AutoRes グループ全体の方法論として転用可能です:
                 Self-Improving Agent が探索する仮説空間にも「測定 metric の構造を agent に教える」フェーズが
-                同じように使えるはずです。
+                同じように使えるはずです。 ただし benchmark 評価では rubric を隠すべき、という線引きを明確に持つ必要があります。
             </div>
+
+            <h4 style="margin-top:18px;">公正な比較に近づけるための次のステップ</h4>
+            <ul style="font-size:13.5px;line-height:1.7;color:#555;margin-left:22px;">
+                <li><strong>Held-out rubric leaves</strong>: 全 leaf のうち 50% だけを agent に渡し、残りは隠して評価する。隠した leaf 上のスコアが上がっていれば「真の改善」、上がっていなければ「単に見せた項目だけ pass している」。</li>
+                <li><strong>Cross-model judge</strong>: 生成は claude-sonnet-4、採点は GPT-4o (PaperBench 公式) など別モデルにすることで、表現一致による上振れを切り分ける。</li>
+                <li><strong>Lexical overlap measurement</strong>: 生成コード中の token と rubric leaf 文字列の overlap を測り、「prompt の指示語をそのままコメントに書いている」だけのケースを発見できる。</li>
+            </ul>
         </section>
 
         <!-- ===================== §7 次の一手 ===================== -->
