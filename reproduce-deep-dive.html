@@ -50,37 +50,133 @@
 
     <main class="container">
 
-        <!-- ===================== §0 リード ===================== -->
+        <!-- ===================== §0 はじめに ===================== -->
         <section class="section" id="lead">
-            <h2><span class="num">§0</span> なぜ Deep Dive を作ったか</h2>
+            <h2><span class="num">§0</span> はじめに — このページが何を見せるのか</h2>
             <p class="lead" id="dd-summary"></p>
 
             <div class="intro-box">
-                <strong>背景:</strong>
-                結果ページ §3 で見せた Reproduce Pipeline の最初の実走では、再現スコア <strong>0.5</strong> でした。
-                内訳は「3 件の数値主張のうち全て untested（実行出力に該当 metric が無かった）」。
-                この状態では「動くところまでは行ったが、論文の数値主張は確認できていない」と言わざるを得ません。
-                <br><br>
-                <strong>方針:</strong>
-                Director の決定で、AutoRes ミーティング前に Reproduce Pipeline を本格的に強化することにしました。
-                ボトルネックを 3 つの Stage（5/4/1）に絞り、最大効果が出る所から潰します。
-                さらに <strong>1 論文ではなく 5 論文で測定</strong> することで、改善が単一論文での偶然ではなく
-                体系的な進歩であることを検証します。
+                <strong>このページを 1 文で:</strong>
+                論文 PDF から AI が再現コードを自動生成する仕組み (<strong>Reproduce Pipeline</strong>) を 13 時間で強化し、
+                5 論文で再測定して、さらに <strong>同じタスクを自律研究エージェント (ARA) にも並行で解かせた</strong> 結果をまとめたものです。
+                結果ページの <a href="./index.html#reproduce">§3 Reproduce Pipeline</a> の続編で、
+                §3 が「1 論文で再現スコア 0.5 だった」と報告したのに対し、本ページは「ではどう強化したか」「強化はどう効いたか」「agent はもっと深い改善を見つけたのか」を扱います。
             </div>
+
+            <h3 id="lead-prereq"><span class="sub-num">§0.1</span> 前提となる用語 (背景知識ゼロでも読めるように)</h3>
+            <div class="term-grid">
+                <div class="term-card">
+                    <div class="term-name">Reproduce Pipeline</div>
+                    <div class="term-desc">arXiv URL を渡すと、論文 PDF の取得 → 再現コード生成 → 環境構築 → 実行 → 数値検証 の 5 stage を全自動で回すツール。本日強化対象。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">5 stage の内訳</div>
+                    <div class="term-desc">①Paper Fetching ②Code Finding (= Claude が再現コードを 1 発生成) ③Env Building ④Execution ⑤Verification (論文の数値主張と実行結果の照合)</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">PaperBench</div>
+                    <div class="term-desc">OpenAI が公開する「論文再現の自動評価ベンチマーク」。23 論文それぞれに <code>rubric.json</code> という採点ツリー (例: 94 〜 2551 ノード) が付属し、各ノードに 0–100 スコアと重みが付く。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">hierarchical_score</div>
+                    <div class="term-desc">PaperBench の最終スコア。rubric ツリーの葉ノード (実装すべき各要件) のスコアを、重み付きで親に伝播させて root に集約した値 (0–100)。<strong>本ページでの主要 metric。</strong></div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">Code-Dev mode / Full mode</div>
+                    <div class="term-desc">Code-Dev = 生成コードを judge に読ませて静的に採点 (GPU 不要・低コスト)。Full = 実際にコードを実行して数値が論文と一致するか確認 (GPU 必要)。<strong>本日の評価は Code-Dev のみ。</strong></div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">SimpleJudge</div>
+                    <div class="term-desc">PaperBench 公式の評価器。GPT-4o-2024-08-06 を使って rubric ノードを採点する。我々はコストの都合で claude-sonnet-4-20250514 で代替。絶対値は公式と直接比較できないが、改善前 vs 改善後の <strong>差分</strong> は意味がある。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">untested ノード</div>
+                    <div class="term-desc">実行出力に該当 metric が無く、judge が「該当する数値主張を確認できなかった」と判定したノード。本日の verifier は untested に 0.25 の partial credit を与える設定 (改善前は 0.5)。</div>
+                </div>
+                <div class="term-card">
+                    <div class="term-name">ARA (自律研究エージェント)</div>
+                    <div class="term-desc">Claude を Researcher / Evaluator / Reviewer / Improver の 4 役で回す自律研究 harness。研究テーマを 1 つ与えると、cycle を回しながら仮説生成・実装・検証を繰り返す。<strong>本日 §4 で並行実験に使った相手。</strong></div>
+                </div>
+            </div>
+
+            <h3 id="lead-start"><span class="sub-num">§0.2</span> 出発点: 1 論文で再現スコア 0.5 だった</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                結果ページ §3 で見せた最初の実走 (論文: <strong>Stochastic Interpolants</strong>) では、3 件の数値主張 (FID 系) のうち
+                <strong>3 件全てが untested</strong> でした。Pipeline は最後まで完走しているのに、生成コードが論文の Table の数値を出さない構造に
+                なっていたためです。 <strong>hierarchical_score 0.5</strong> という数字は、untested の partial credit (当時 0.5) で底上げされた値で、
+                実質的には「動いたが何も検証できていない」状態に近い。これを起点に Reproduce Pipeline を本格的に強化することにしました。
+            </p>
+
+            <h3 id="lead-fix"><span class="sub-num">§0.3</span> 4 つの改善 — 何をどう直すか</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                上記の 5 stage のうち、ボトルネックになっていた 3 つの Stage に対する 4 件のコード改善を入れました。各改善が
+                「どの Stage の、何を直すか」「改善前は何が起きていたか」「改善後どう変わるか」を簡潔に:
+            </p>
+            <table class="kv-table">
+                <thead>
+                    <tr><th style="width:130px;">改善</th><th>対象 Stage</th><th>改善前 → 改善後</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>① metric alias 拡張</th>
+                        <td>Stage 5 (Verification)</td>
+                        <td>論文の "FID-50k" を捕捉できる metric 名の辞書を 12 → 40+ に拡張。改善前は "FID" としか書かれていない数値主張を取りこぼしていた。</td>
+                    </tr>
+                    <tr>
+                        <th>② success 厳密化</th>
+                        <td>Stage 4 (Execution)</td>
+                        <td>「returncode=0 だが silent failure (RuntimeError スルー、shape mismatch 等)」を success と誤判定する問題を修正。</td>
+                    </tr>
+                    <tr>
+                        <th>③ pdfplumber 導入</th>
+                        <td>Stage 1 (Paper Fetching)</td>
+                        <td>PyPDF2 → pdfplumber に切替えて Table 抽出を可能にした。改善前は本文 text のみ、改善後は Table の数値も Claude に渡る。</td>
+                    </tr>
+                    <tr>
+                        <th>④ max_tokens 緩和</th>
+                        <td>Stage 2 (Code Finding)</td>
+                        <td>Claude のコード生成上限を 8192 → 16384 tokens に拡張。改善前は複雑な論文で生成コードが途中で切れていた。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="lead-baseline-improved"><span class="sub-num">§0.4</span> §1 で出てくる「改善前 (baseline) / 改善後 (improved)」とは何か</h3>
+            <div class="callout">
+                <strong>用語の定義 — §1 以降を読む前にここを押さえてください:</strong>
+                <ul style="margin:8px 0 0 22px;font-size:14px;line-height:1.8;color:#333;">
+                    <li><strong>baseline (改善前)</strong> = 上記 4 改善を入れる前の reproduce repo (main branch) で、同じ論文・同じ rubric を採点した hierarchical_score</li>
+                    <li><strong>improved (改善後)</strong> = 4 改善を入れた branch (<code>reproduce/strengthen-2026-04-30</code>) で、同じ論文・同じ rubric を採点した hierarchical_score</li>
+                    <li>同じ論文 × 同じ judge × 同じ rubric.json で測るので、改善前 / 改善後の <strong>差分 (Δ)</strong> が「4 改善が hierarchical_score をどれだけ動かしたか」を直接表す</li>
+                    <li>1 論文だけだと偶然の可能性があるので、PaperBench から <strong>5 論文を選んで × 2 variants = 10 evaluations</strong> を回した</li>
+                </ul>
+            </div>
+
+            <h3 id="lead-toc"><span class="sub-num">§0.5</span> このページの構成</h3>
+            <ul style="font-size:14px;line-height:1.8;color:#333;margin:6px 0 0 22px;">
+                <li><a href="#comparison"><strong>§1 改善前 / 改善後 — 5 論文での比較</strong></a> — 5 論文の hierarchical_score を bar chart と表で。 <em>(=「人間 + Claude が 13 時間で出した結果」)</em></li>
+                <li><a href="#improvements"><strong>§2 4 つのコード改善 — 何をどう直したか</strong></a> — 各改善のコード差分と効いたケース・効かなかったケース。</li>
+                <li><a href="#failure-cases"><strong>§3 失敗ケースの正直な開示</strong></a> — 改善後でも伸びなかった論文の理由 (arxiv_id 取り違え / Code-Dev mode の特性 / Claude 生成の確率性)。</li>
+                <li><a href="#meta-experiment"><strong>§4 並行実験 — agent に同じ問題を解かせる</strong></a> — 同じタスクを ARA に解かせた結果。 <em>(=「人間 13h で +3.6pt」 vs 「agent 1h で +24.3pp + バグ 4 件」の比較)</em></li>
+                <li><a href="#next-steps"><strong>§5 次の一手</strong></a> — まだ着手していないこと、次の方向性。</li>
+            </ul>
         </section>
 
         <!-- ===================== §1 改善前/後 比較 ===================== -->
         <section class="section" id="comparison">
             <h2><span class="num">§1</span> 改善前 / 改善後 — 5 論文での比較</h2>
-            <p class="lead">5 論文 × 2 variants（baseline / improved）の hierarchical_score を一望。</p>
+            <p class="lead">
+                §0.3 で挙げた 4 改善を入れる前 (baseline) と入れた後 (improved) の hierarchical_score を、PaperBench から選んだ 5 論文で並べて比較します。
+                <em>※ baseline / improved の定義は <a href="#lead-baseline-improved">§0.4</a> を参照。</em>
+            </p>
 
             <div class="intro-box">
-                <strong>評価設定:</strong>
+                <strong>評価設定 (§0 と重複しますが再掲):</strong>
                 <ul style="margin:6px 0 0 22px;font-size:14px;">
-                    <li><strong>Mode:</strong> PaperBench Code-Dev（生成コードのみを採点、実行不要、GPU 不要）</li>
-                    <li><strong>Judge model:</strong> claude-sonnet-4-20250514（公式 SimpleJudge は GPT-4o だが、コスト的に Sonnet を使用）</li>
-                    <li><strong>baseline:</strong> 改善前のコード（main branch）</li>
-                    <li><strong>improved:</strong> 4 改善を適用したコード（reproduce/strengthen-2026-04-30 branch）</li>
+                    <li><strong>Mode:</strong> PaperBench Code-Dev (生成コードのみを採点、実行不要、GPU 不要)</li>
+                    <li><strong>Judge model:</strong> claude-sonnet-4-20250514 (公式 SimpleJudge は GPT-4o だが、コスト的に Sonnet を使用)</li>
+                    <li><strong>baseline:</strong> 改善前のコード (main branch)</li>
+                    <li><strong>improved:</strong> 4 改善を適用したコード (reproduce/strengthen-2026-04-30 branch)</li>
+                    <li><strong>選んだ 5 論文:</strong> PaperBench 23 論文のうち、rubric ノード数が比較的小さい 5 件 (stochastic-interpolants 94 / semantic-self-consistency 100 / sequential-neural-score-estimation 123 / mechanistic-understanding 128 / robust-clip 146)。これは時間制約 (5/1 12:00 まで) で全 23 論文を回せないため。</li>
                 </ul>
             </div>
 
