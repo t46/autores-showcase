@@ -263,8 +263,8 @@
             <div id="dd-failures"></div>
 
             <div class="callout" style="margin-top:18px;">
-                <strong>未着手の改善（明日 scope 外）:</strong> Stage 2 (Code Finding) の生成コード品質改善（prompt + few-shot example）と
-                Stage 3 (Env Builder) の堅牢化（conda/uv hybrid）は 1 週間以上必要なので明日 scope 外。
+                <strong>未着手の改善:</strong> Stage 2 (Code Finding) の生成コード品質改善（prompt + few-shot example）と
+                Stage 3 (Env Builder) の堅牢化（conda/uv hybrid）は今回のラウンド外。
                 Stage 2 が改善されれば、現状 untested に落ちている FID 計算コードが正しく入って、
                 数値主張の検証が一気に通る可能性があります。
             </div>
@@ -486,12 +486,12 @@ graph LR
             <h2><span class="num">§7</span> 次の一手 — まだ着手していないこと</h2>
             <p class="lead">今回のラウンドで進めたのは「最も効きそうな所」「複数論文での測定」「§4 並行実験」「§6 パイプラインレベル介入」。次に取り組むべき項目を正直に列挙します。</p>
 
-            <h3>短期（次の 1-2 週間）</h3>
+            <h3>近い課題</h3>
             <table class="kv-table">
                 <tbody>
                     <tr>
                         <th>全 23 論文での測定</th>
-                        <td>本日は 5 論文（小規模）。残り 18 論文（pinn 2551 nodes、lbcs 1471 nodes 等含む）を測定すれば、改善の汎用性を検証できる。Code-Dev mode で約 2-3 日。</td>
+                        <td>本日は 5 論文（小規模）。残り 18 論文（pinn 2551 nodes、lbcs 1471 nodes 等含む）を測定すれば、改善の汎用性を検証できる。</td>
                     </tr>
                     <tr>
                         <th>Stage 2 の prompt 改善</th>
@@ -508,7 +508,7 @@ graph LR
                 </tbody>
             </table>
 
-            <h3>中期（次の 1 ヶ月）</h3>
+            <h3>もう一段先の課題</h3>
             <table class="kv-table">
                 <tbody>
                     <tr>
@@ -526,7 +526,7 @@ graph LR
                 </tbody>
             </table>
 
-            <h3>長期（AutoRes グループとして）</h3>
+            <h3>AutoRes グループとして見据える方向</h3>
             <p style="font-size:14px;line-height:1.7;color:#333;">
                 Reproduce Pipeline 自体を AutoRes の研究エコシステムに組み込み、
                 <strong>「論文発見（Literature Scout） → 再現（Reproduce） → 改善（PaperBench Iter） → 自動探索（Self-Improving）」</strong>
@@ -536,8 +536,8 @@ graph LR
             <p style="font-size:14px;line-height:1.7;color:#333;margin-top:12px;">
                 §4 の並行実験で「agent にループを閉じさせる」ことの初歩的な手応えが取れたので、
                 <strong>「人間が改善案を考えて実装する」フェーズを、できるだけ早く agent (ARA + research-prime)
-                に渡してしまう</strong> のが現実的な経路だと考えています。次の 1-2 週間は、
-                ARA が今夜見つけた 4 バグ + H4 を実コードに取り込み、その効果を 5 論文 → 23 論文へと拡大
+                に渡してしまう</strong> のが現実的な経路だと考えています。
+                ARA が見つけた 4 バグ + H4 を実コードに取り込み、その効果を 5 論文 → 23 論文へと拡大
                 しながら、ARA の出力を直接 reproduce repo の PR に流す自動橋渡しを作るのが課題です。
             </p>
         </section>

@@ -20,14 +20,14 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "not_run",
+          "status": "no_generated_code",
           "hierarchical_score": null,
           "simple_average_score": null,
           "num_nodes": null,
           "error": null
         },
         "rubric-aware": {
-          "status": "not_run",
+          "status": "no_generated_code",
           "hierarchical_score": null,
           "simple_average_score": null,
           "num_nodes": null,
@@ -57,7 +57,7 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "not_run",
+          "status": "no_generated_code",
           "hierarchical_score": null,
           "simple_average_score": null,
           "num_nodes": null,
@@ -264,5 +264,5 @@
     "limit": "今回は 1-pass 評価のみ。2-pass loop (失敗 leaf 抽出 → v2 再生成) は実装済みだがスコープ外で本実験では未起動。",
     "honest_caveat": "Code-Dev mode は静的 judge であり、実行可能性 / 数値一致は検証していない。Full mode (GPU 必要) は次の一手。"
   },
-  "_generated_at": "2026-04-30T14:48:04+00:00"
+  "_generated_at": "2026-04-30T15:04:12+00:00"
 }
