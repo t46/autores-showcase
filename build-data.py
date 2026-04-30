@@ -54,8 +54,53 @@ def build_paperbench() -> dict:
             "num_nodes": int(d.get("num_nodes_total", 0)),
         })
 
-    # "What Improved" / "What Failed" notes — extracted from score-log.md by section
-    notes = parse_score_log_notes(REPO / "docs" / "score-log.md")
+    # "改善した点" / "失敗した点" notes — score-log.md の英語原文を 5/1 発表向けに日本語へ翻訳・整形
+    notes = {
+        "v0": {
+            "improved": [
+                "論文の解析（Stage 1）：主張・アーキテクチャ詳細・ハイパーパラメータ・コード参照をすべて正しく抽出",
+                "ハイパーパラメータの一致（rubric Stage 4-5）：Adam optimizer、lr=2e-4、StepLR gamma=0.99/1000 steps、grad clip 10000、U-Net 構造（dim_mults、attention heads 等）すべて 100 点",
+                "コアフレームワーク：Stochastic interpolant + torchdiffeq Dopri5 ソルバを使った ODE サンプリングを実装",
+                "訓練ループの構造：損失計算のフレームワーク、時間サンプリング U(0,1) を実装",
+            ],
+            "failed": [
+                "データソース：ImageNet ではなく CIFAR-10 を使ってしまった（dataset 関連ノードが 0/100）",
+                "外部依存：lucidrains の denoising-diffusion-pytorch repo を取り込んでいない（0/100）",
+                "タスク固有実装：Inpainting のマスク戦略が完全に間違い（64-tile ではなくピクセル単位、超解像のマスクも誤り）",
+                "Dependent coupling：論文の核心となる貢献の実装が不完全（適切な data-conditioning ではなく汎用ノイズ相関になっていた）",
+                "サンプリング手順：Algorithm 2 の明示的 Euler ステップではなく ODE solve を使ってしまった",
+                "訓練ステップ：エポックベース（要件は 200,000 勾配ステップのステップベース）",
+                "クラス条件付け：未実装（クラス値で uniform channel を埋める処理がない）",
+            ],
+        },
+        "v1": {
+            "improved": [
+                "ImageNet データセットアクセス：HuggingFace datasets を使うように修正（スコア 0 → 100）",
+                "マスク戦略：64-tile マスク（p=0.3）を実装（ほぼ修正完了）",
+                "結合公式：x_0 = mask * x_1 + (1-mask) * noise を正しく実装",
+                "ステップベース訓練：200,000 勾配ステップで訓練するように変更",
+                "クラス条件付け：クラス値の uniform channel を追加",
+                "バッチサイズ：要件通り 32 に固定",
+                "両モデル：Dependent Coupling と Uncoupled Interpolant の両方を実装",
+            ],
+            "failed": [
+                "lucidrains の U-Net：外部 repo からまだ import できていない（スコア 0 のまま）",
+                "Dopri ソルバ：前回は使えていたが、書き直しの過程で Forward Euler に戻ってしまった",
+                "勾配クリップ値：10,000 ではなく 1.0 に設定されている",
+                "サンプリング細部：実装上の細かいズレが残る",
+            ],
+        },
+        "v2": {
+            "improved": [
+                "Dopri ソルバ：torchdiffeq の odeint(method='dopri5') を復元",
+                "FID 評価：fid_score.py を追加して正しい評価を実装",
+                "超解像：適切なダウンサンプリング／アップサンプリングのパイプラインを構築",
+                "Uncoupled モデル：dependent / uncoupled バリアントを明確に分離",
+                "ODE 用モデルラッパー：torchdiffeq に対応する ODE 関数の正しいラッピング",
+            ],
+            "failed": [],
+        },
+    }
 
     sota = [
         {"agent": "DeepCode", "score": 75.9, "note": "20論文の平均", "ours": False},
