@@ -14,6 +14,7 @@
             <ul>
                 <li><a href="./index.html" class="active">結果</a></li>
                 <li><a href="./methods.html">手法・タスク</a></li>
+                <li><a href="./reproduce-deep-dive.html">Reproduce Deep Dive</a></li>
                 <li><a href="https://github.com/t46/autores-showcase" target="_blank" rel="noopener">GitHub</a></li>
             </ul>
         </div>
@@ -170,6 +171,17 @@
             <div class="callout" style="margin-top:20px;">
                 <strong>つまり何が言えるか:</strong> Reproduce Pipeline 単体では「動かすところまでは行ったが、論文の数値主張は未確認」という状態。これは EnvBench/PRBench で示されている業界全体のギャップ（環境構築 7%、end-to-end 数値一致 0%）と一致しています。
                 <strong>解決方向:</strong> Stage 2 のコード生成精度は <a href="./methods.html#paperbench">PaperBench Iter（§1）</a> で +51.3pp 改善できることを実証済み。Stage 5 の数値抽出はさらなる強化が必要。
+            </div>
+
+            <div style="margin-top:24px;padding:18px;background:#fff8e1;border:1px solid #f9a825;border-left:4px solid #f9a825;border-radius:6px;">
+                <strong style="color:#b76e00;">⚡ 続編: Reproduce Pipeline を強化して 5 論文で再測定しました</strong>
+                <p style="font-size:14px;margin-top:8px;line-height:1.7;">
+                    上記の 0.5 という数字は微妙すぎたので、4 つのコード改善（metric alias 拡張 / success 厳密化 / pdfplumber / max_tokens）を入れて、
+                    PaperBench から 5 論文を選んで baseline / improved を比較しました。
+                </p>
+                <p style="margin-top:10px;">
+                    <a href="./reproduce-deep-dive.html" style="display:inline-block;padding:8px 16px;background:#0066cc;color:#fff;border-radius:6px;font-weight:600;text-decoration:none;">→ Reproduce Pipeline Deep Dive を見る</a>
+                </p>
             </div>
         </section>
 

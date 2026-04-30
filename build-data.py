@@ -18,6 +18,7 @@ from pathlib import Path
 REPO = Path("/Users/s30825/dev/autores")
 OUT = Path(__file__).parent / "data"
 NOW = datetime.now(timezone.utc).isoformat(timespec="seconds")
+BATCH_ROOT = REPO / "reproduce" / "results" / "paperbench-batch"
 
 
 def safe_load(path: Path):
@@ -452,6 +453,144 @@ def build_overview(pb, si, rp, ls) -> dict:
     }
 
 
+# --------------------------- §Deep Dive — PaperBench batch ---------------------------
+def build_paperbench_batch() -> dict:
+    """5 論文 × {baseline, improved} の評価結果を集計。
+
+    BATCH_ROOT/<paper_id>/<variant>/{summary.json, evaluation.json} を読む。
+    結果が無い論文は status='not_run' で記録（"進行中" として表示できる）。
+    """
+    paper_order = [
+        ("stochastic-interpolants", "Stochastic Interpolants", 94),
+        ("semantic-self-consistency", "Semantic Self-Consistency", 100),
+        ("sequential-neural-score-estimation", "Sequential Neural Score Estimation", 123),
+        ("mechanistic-understanding", "Mechanistic Understanding (DPO toxicity)", 128),
+        ("robust-clip", "Robust CLIP", 146),
+    ]
+    variants = ["baseline", "improved"]
+
+    papers = []
+    for pid, label, nodes in paper_order:
+        entry = {"id": pid, "label": label, "nodes_expected": nodes, "variants": {}}
+        for v in variants:
+            vdir = BATCH_ROOT / pid / v
+            slot = {
+                "status": "not_run",
+                "hierarchical_score": None,
+                "simple_average_score": None,
+                "num_nodes": None,
+                "error": None,
+            }
+            summary_p = vdir / "summary.json"
+            eval_p = vdir / "evaluation.json"
+            if summary_p.exists():
+                try:
+                    s = json.loads(summary_p.read_text())
+                    slot["status"] = s.get("status", "unknown")
+                    if s.get("evaluation"):
+                        e = s["evaluation"]
+                        slot["hierarchical_score"] = e.get("hierarchical_score")
+                        slot["simple_average_score"] = e.get("simple_average_score")
+                        slot["num_nodes"] = e.get("num_nodes")
+                        if not e.get("success"):
+                            slot["error"] = e.get("error")
+                except Exception as ex:
+                    slot["error"] = f"summary parse error: {ex}"
+            if eval_p.exists() and slot["hierarchical_score"] is None:
+                # Fallback: read evaluation.json directly
+                try:
+                    e = json.loads(eval_p.read_text())
+                    slot["hierarchical_score"] = float(e.get("hierarchical_score", 0))
+                    slot["simple_average_score"] = float(e.get("simple_average_score", 0))
+                    slot["num_nodes"] = e.get("num_nodes_evaluated") or len(e.get("scored_nodes", []))
+                    slot["status"] = "completed"
+                except Exception as ex:
+                    slot["error"] = f"evaluation parse error: {ex}"
+            entry["variants"][v] = slot
+        # delta 計算
+        b = entry["variants"]["baseline"].get("hierarchical_score")
+        i = entry["variants"]["improved"].get("hierarchical_score")
+        if b is not None and i is not None:
+            entry["delta"] = round(i - b, 2)
+        else:
+            entry["delta"] = None
+        papers.append(entry)
+
+    # Summary
+    completed = sum(
+        1 for p in papers
+        if p["variants"]["baseline"]["status"] == "completed"
+        and p["variants"]["improved"]["status"] == "completed"
+    )
+    improved_count = sum(1 for p in papers if (p.get("delta") or 0) > 0)
+
+    return {
+        "title": "Reproduce Pipeline Deep Dive — 5 論文での再測定",
+        "summary": (
+            f"Stochastic Interpolants 1 本で 0.5 だった再現スコアを、4 つのコード改善"
+            f"（metric alias / success 判定 / pdfplumber / max_tokens）と 5 論文での再測定で検証する。"
+        ),
+        "improvements": [
+            {
+                "id": "metric_alias",
+                "name": "metric alias 拡張 (12 → 40+)",
+                "description": (
+                    "verifier.py / executor.py の metric alias を 12 個から 40+ に拡張。"
+                    "FID / FID-50k / LPIPS / SSIM / PSNR / BERTScore / METEOR / CIDEr / pass@k 等を追加。"
+                    "substring + regex matching、テーブル形式（| FID | 1.13 |）対応。"
+                    "untested の重みも 0.5 → 0.25 に下げて「拾えてない」事実を正直に表す。"
+                ),
+                "files": [
+                    "src/autores_reproduce/verifier.py",
+                    "src/autores_reproduce/executor.py",
+                ],
+            },
+            {
+                "id": "success_strict",
+                "name": "success 判定の厳密化",
+                "description": (
+                    "executor.py で success_strict フィールド新設。returncode==0 だけでなく "
+                    "metric が 1 個以上抽出された AND silent failure pattern (mat1 and mat2 / "
+                    "shape mismatch / Traceback 等) が出ていない、を AND 条件に。"
+                    "「returncode=0 だが実は失敗」を炙り出す。"
+                ),
+                "files": ["src/autores_reproduce/executor.py"],
+            },
+            {
+                "id": "pdfplumber",
+                "name": "PDF extractor を pdfplumber に切替",
+                "description": (
+                    "paper_fetcher.py の PyPDF2 を pdfplumber 優先に。page.extract_tables() を "
+                    "markdown 化して text に追記、論文 Table 1 / Table 2 の数値（FID 1.13 等）を直接拾える。"
+                    "paper_text の truncation を 50000 → 200000 に拡張。PyPDF2 を fallback で残す。"
+                ),
+                "files": ["src/autores_reproduce/paper_fetcher.py", "pyproject.toml"],
+            },
+            {
+                "id": "max_tokens",
+                "name": "code generation max_tokens 緩和",
+                "description": (
+                    "code_finder.py の Claude API max_tokens を 8192 → 16384 に。"
+                    "本格的な prompt 改善は後日、まず cut-off による途切れを緩和。"
+                ),
+                "files": ["src/autores_reproduce/code_finder.py"],
+            },
+        ],
+        "papers": papers,
+        "stats": {
+            "total_papers": len(papers),
+            "fully_completed": completed,
+            "improved_count": improved_count,
+        },
+        "evaluation_mode": "PaperBench Code-Dev (claude-sonnet-4-20250514 as judge)",
+        "note": (
+            "本評価は PaperBench Code-Dev mode（生成コードを judge にかける、実行不要、GPU 不要）。"
+            "公式 SimpleJudge は GPT-4o だが、我々は claude-sonnet-4 を使用しているため絶対値は公式と直接比較不可。"
+            "差分（baseline → improved）が我々の改善効果の指標。"
+        ),
+    }
+
+
 def main():
     print("[build-data] start")
     pb = build_paperbench()
@@ -459,12 +598,14 @@ def main():
     rp = build_reproduce()
     ls = build_literature_scout()
     ov = build_overview(pb, si, rp, ls)
+    pbb = build_paperbench_batch()
 
     write_json("paperbench.json", pb)
     write_json("self-improving.json", si)
     write_json("reproduce.json", rp)
     write_json("literature-scout.json", ls)
     write_json("overview.json", ov)
+    write_json("paperbench-batch.json", pbb)
     print(f"[build-data] done @ {NOW}")
 
 

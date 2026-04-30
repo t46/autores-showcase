@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproduce Pipeline Deep Dive — 5 論文での再測定</title>
+    <meta name="description" content="再現スコア 0.5 から始まった Reproduce Pipeline を 4 つのコード改善で強化し、PaperBench 5 論文で再測定した結果。">
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#f0f4ff',
+                primaryBorderColor: '#0066cc',
+                primaryTextColor: '#1a1a1a',
+                lineColor: '#0066cc',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                fontSize: '13px',
+            },
+            flowchart: { curve: 'basis', padding: 14 },
+        });
+    </script>
+</head>
+<body>
+    <nav class="site-nav">
+        <div class="container">
+            <div class="brand">AutoRes Showcase</div>
+            <ul>
+                <li><a href="./index.html">結果</a></li>
+                <li><a href="./methods.html">手法・タスク</a></li>
+                <li><a href="./reproduce-deep-dive.html" class="active">Reproduce Deep Dive</a></li>
+                <li><a href="https://github.com/t46/autores-showcase" target="_blank" rel="noopener">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <h1>Reproduce Pipeline Deep Dive</h1>
+            <p class="subtitle">再現スコア 0.5 から始まった Reproduce Pipeline を強化し、5 論文で再測定した結果</p>
+            <p style="font-size:13px;color:#888;margin-top:8px;">
+                結果ページの <a href="./index.html#reproduce">§3 Reproduce Pipeline</a> の続編 —
+                「徹底的に強化したい」という方針で 4 つのコード改善 + 5 論文での再評価を行いました。
+            </p>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- ===================== §0 リード ===================== -->
+        <section class="section" id="lead">
+            <h2><span class="num">§0</span> なぜ Deep Dive を作ったか</h2>
+            <p class="lead" id="dd-summary"></p>
+
+            <div class="intro-box">
+                <strong>背景:</strong>
+                結果ページ §3 で見せた Reproduce Pipeline の最初の実走では、再現スコア <strong>0.5</strong> でした。
+                内訳は「3 件の数値主張のうち全て untested（実行出力に該当 metric が無かった）」。
+                この状態では「動くところまでは行ったが、論文の数値主張は確認できていない」と言わざるを得ません。
+                <br><br>
+                <strong>方針:</strong>
+                Director の決定で、AutoRes ミーティング前に Reproduce Pipeline を本格的に強化することにしました。
+                ボトルネックを 3 つの Stage（5/4/1）に絞り、最大効果が出る所から潰します。
+                さらに <strong>1 論文ではなく 5 論文で測定</strong> することで、改善が単一論文での偶然ではなく
+                体系的な進歩であることを検証します。
+            </div>
+        </section>
+
+        <!-- ===================== §1 改善前/後 比較 ===================== -->
+        <section class="section" id="comparison">
+            <h2><span class="num">§1</span> 改善前 / 改善後 — 5 論文での比較</h2>
+            <p class="lead">5 論文 × 2 variants（baseline / improved）の hierarchical_score を一望。</p>
+
+            <div class="intro-box">
+                <strong>評価設定:</strong>
+                <ul style="margin:6px 0 0 22px;font-size:14px;">
+                    <li><strong>Mode:</strong> PaperBench Code-Dev（生成コードのみを採点、実行不要、GPU 不要）</li>
+                    <li><strong>Judge model:</strong> claude-sonnet-4-20250514（公式 SimpleJudge は GPT-4o だが、コスト的に Sonnet を使用）</li>
+                    <li><strong>baseline:</strong> 改善前のコード（main branch）</li>
+                    <li><strong>improved:</strong> 4 改善を適用したコード（reproduce/strengthen-2026-04-30 branch）</li>
+                </ul>
+            </div>
+
+            <h3>進行状況</h3>
+            <div id="dd-stats" style="margin:12px 0;"></div>
+
+            <h3>① 改善前/後 スコア比較（チャート）</h3>
+            <div class="chart-card">
+                <div class="chart-title">5 論文の hierarchical_score（改善前 vs 改善後）</div>
+                <div class="chart-wrap wide"><canvas id="chart-batch"></canvas></div>
+            </div>
+
+            <h3>② 詳細表</h3>
+            <table id="dd-comparison-table">
+                <thead>
+                    <tr>
+                        <th>論文</th>
+                        <th>nodes</th>
+                        <th>baseline</th>
+                        <th>improved</th>
+                        <th>Δ</th>
+                        <th>状態</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="callout" id="dd-overall-callout" style="margin-top:18px;"></div>
+        </section>
+
+        <!-- ===================== §2 各改善施策 ===================== -->
+        <section class="section" id="improvements">
+            <h2><span class="num">§2</span> 4 つのコード改善 — 何をどう直したか</h2>
+            <p class="lead">再現スコア 0.5 の主な原因 4 つに対する具体的な対策。各改善のファイル変更とロジックを示します。</p>
+
+            <div id="dd-improvements"></div>
+        </section>
+
+        <!-- ===================== §3 失敗ケースの正直な開示 ===================== -->
+        <section class="section" id="failure-cases">
+            <h2><span class="num">§3</span> 失敗ケースの正直な開示</h2>
+            <p class="lead">改善後でもスコアが伸びなかった論文・ノードがあれば、その原因と理由を開示します。</p>
+
+            <div class="intro-box">
+                改善が効くドメインと効かないドメインを正直に切り分けることが、次の一手の設計を可能にします。
+                スコアが伸びなかったケースは「改善が効かない構造的な理由」を示すデータとして重要です。
+            </div>
+
+            <div id="dd-failures"></div>
+
+            <div class="callout" style="margin-top:18px;">
+                <strong>未着手の改善（明日 scope 外）:</strong> Stage 2 (Code Finding) の生成コード品質改善（prompt + few-shot example）と
+                Stage 3 (Env Builder) の堅牢化（conda/uv hybrid）は 1 週間以上必要なので明日 scope 外。
+                Stage 2 が改善されれば、現状 untested に落ちている FID 計算コードが正しく入って、
+                数値主張の検証が一気に通る可能性があります。
+            </div>
+        </section>
+
+        <!-- ===================== §4 次の一手 ===================== -->
+        <section class="section" id="next-steps">
+            <h2><span class="num">§4</span> 次の一手 — まだ着手していないこと</h2>
+            <p class="lead">5/1 までの 13 時間で進めたのは「最も効きそうな所」と「複数論文での測定」。次に取り組むべき項目を正直に列挙します。</p>
+
+            <h3>短期（次の 1-2 週間）</h3>
+            <table class="kv-table">
+                <tbody>
+                    <tr>
+                        <th>全 23 論文での測定</th>
+                        <td>本日は 5 論文（小規模）。残り 18 論文（pinn 2551 nodes、lbcs 1471 nodes 等含む）を測定すれば、改善の汎用性を検証できる。Code-Dev mode で約 2-3 日。</td>
+                    </tr>
+                    <tr>
+                        <th>Stage 2 の prompt 改善</th>
+                        <td>現状 architecture が簡略化されすぎ、validation set が欠落、bug 入りコードが生成される。few-shot example + dataset preparation の明示で改善可能。</td>
+                    </tr>
+                    <tr>
+                        <th>NRR の Reproduce 統合</th>
+                        <td>Self-Improving Agent で実証済みの NRR（Negative Result Repository）を Reproduce にも組み込み、「同じ環境エラーを二度しない」「失敗した方向の再生成を抑制」を実装。</td>
+                    </tr>
+                    <tr>
+                        <th>公式 GPT-4o SimpleJudge への切替</th>
+                        <td>PaperBench 公式は GPT-4o-2024-08-06 を judge に使う。我々は claude-sonnet-4。絶対値の比較可能性を上げるなら切替が必要。コスト約 2 倍。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>中期（次の 1 ヶ月）</h3>
+            <table class="kv-table">
+                <tbody>
+                    <tr>
+                        <th>Full mode 評価</th>
+                        <td>Code-Dev は静的評価。Full mode は実際に実行して数値一致まで検証する。GPU 必要、コストも跳ねる。EnvBench / PRBench との統合的な比較が可能になる。</td>
+                    </tr>
+                    <tr>
+                        <th>Stage 3 env builder の本格改善</th>
+                        <td>業界 SOTA でも 7% 未満の成功率。conda + uv の hybrid、CUDA バージョン管理、Docker レス再現性など最大のフロンティア。</td>
+                    </tr>
+                    <tr>
+                        <th>Stage 1 を Mistral OCR or Adobe Extract API に</th>
+                        <td>pdfplumber でも image-only な Table/Figure は取れない。OCR API への切替で論文の数値抽出精度を上げる。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>長期（AutoRes グループとして）</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                Reproduce Pipeline 自体を AutoRes の研究エコシステムに組み込み、
+                <strong>「論文発見（Literature Scout） → 再現（Reproduce） → 改善（PaperBench Iter） → 自動探索（Self-Improving）」</strong>
+                の end-to-end ループを 24/365 で回す。各論文の再現結果が NRR に蓄積され、次の探索を方向づける。
+                これが我々の AI Scientist の最終形です。
+            </p>
+        </section>
+
+        <!-- ===================== Footer note ===================== -->
+        <section class="section" style="background:#f0f4ff;border-color:#c7d8ff;">
+            <h2 style="border-bottom:none;padding-bottom:0;">この Deep Dive は何のためか</h2>
+            <p style="font-size:14.5px;line-height:1.75;">
+                AutoRes グループが取り組んでいる「研究の自動化」のうち、<strong>論文再現は最も重要かつ未解決</strong>な部分です。
+                業界全体で end-to-end の数値一致は <strong>0%</strong>（PRBench）、環境構築の成功率は <strong>&lt; 7%</strong>（EnvBench）。
+                本 Deep Dive は、この絶望的な数字に対して我々が <strong>13 時間で何ができたか</strong> を正直に共有するものです。
+                <br><br>
+                改善前 0.5 → 改善後 X% という結果が、絶対値としては小さくとも、
+                「複数論文で測定可能な体系」と「正直なボトルネック分析」を AutoRes グループに提供することが本日の目的です。
+            </p>
+            <p style="font-size:13.5px;color:#555;margin-top:14px;">
+                これは <a href="./index.html">結果ページ §3</a> と <a href="./methods.html#reproduce">手法ページ §3</a> の続編です。
+                全体の文脈はそちらをご覧ください。
+            </p>
+        </section>
+
+    </main>
+
+    <footer>
+        <div>AutoRes 4 Components Showcase · Reproduce Pipeline Deep Dive · 高木 史朗 / Unktok</div>
+        <div class="gen-time" id="footer-time">生成日時: —</div>
+    </footer>
+
+    <script>
+        (async () => {
+            const ACCENT = '#0066cc';
+            const ACCENT_LIGHT = '#9ec5ff';
+            const GREEN = '#22c55e';
+            const RED = '#ef4444';
+            const GOLD = '#f9a825';
+            const GRAY = '#9ca3af';
+
+            Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+            Chart.defaults.font.size = 12;
+            Chart.defaults.color = '#444';
+
+            const $ = id => document.getElementById(id);
+            const el = (tag, attrs = {}, children = []) => {
+                const e = document.createElement(tag);
+                for (const [k, v] of Object.entries(attrs)) {
+                    if (k === 'class') e.className = v;
+                    else if (k === 'html') e.innerHTML = v;
+                    else if (k === 'text') e.textContent = v;
+                    else e.setAttribute(k, v);
+                }
+                for (const c of [].concat(children)) {
+                    if (c == null) continue;
+                    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+                }
+                return e;
+            };
+
+            try {
+                const d = await fetch('./data/paperbench-batch.json').then(r => r.json());
+                $('dd-summary').textContent = d.summary || '';
+                $('footer-time').textContent = '生成日時: ' + (d._generated_at || '—');
+
+                // Stats
+                const s = d.stats || {};
+                const statsHost = $('dd-stats');
+                statsHost.innerHTML = `
+                    <div class="breakdown-row">
+                        <span class="breakdown-cell total">対象 <strong>${s.total_papers || 0}</strong> 論文</span>
+                        <span class="breakdown-cell ${s.fully_completed === s.total_papers ? 'passed' : 'untested'}">
+                            <strong>${s.fully_completed || 0}</strong> 件 完了
+                        </span>
+                        <span class="breakdown-cell passed">
+                            <strong>${s.improved_count || 0}</strong> 件 改善（Δ &gt; 0）
+                        </span>
+                    </div>
+                    ${s.fully_completed < s.total_papers ? '<p style="font-size:13px;color:#b76e00;margin-top:8px;">⏳ 一部の論文は評価進行中です。完走分のみ表示しています。</p>' : ''}
+                `;
+
+                // Chart: baseline vs improved per paper
+                const papers = d.papers || [];
+                const labels = papers.map(p => p.label);
+                const baselineData = papers.map(p => p.variants.baseline.hierarchical_score);
+                const improvedData = papers.map(p => p.variants.improved.hierarchical_score);
+                new Chart($('chart-batch'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'baseline',
+                                data: baselineData,
+                                backgroundColor: GRAY,
+                                borderColor: '#666',
+                                borderWidth: 1,
+                            },
+                            {
+                                label: 'improved',
+                                data: improvedData,
+                                backgroundColor: ACCENT,
+                                borderColor: '#003c80',
+                                borderWidth: 1,
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => {
+                                        const v = ctx.parsed.y;
+                                        return `${ctx.dataset.label}: ${v == null ? '評価未実施' : v.toFixed(2) + '%'}`;
+                                    },
+                                },
+                            },
+                        },
+                        scales: {
+                            y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+                        },
+                    },
+                });
+
+                // Comparison table
+                const tbody = document.querySelector('#dd-comparison-table tbody');
+                for (const p of papers) {
+                    const tr = el('tr');
+                    tr.appendChild(el('td', { html: '<strong>' + p.label + '</strong><br><code style="font-size:11px;color:#888;">' + p.id + '</code>' }));
+                    tr.appendChild(el('td', { text: p.nodes_expected }));
+                    const bScore = p.variants.baseline.hierarchical_score;
+                    const iScore = p.variants.improved.hierarchical_score;
+                    tr.appendChild(el('td', { text: bScore == null ? '—' : bScore.toFixed(2) + '%' }));
+                    tr.appendChild(el('td', { text: iScore == null ? '—' : iScore.toFixed(2) + '%' }));
+                    let deltaText = '—';
+                    let deltaCls = '';
+                    if (p.delta != null) {
+                        deltaText = (p.delta >= 0 ? '+' : '') + p.delta.toFixed(2) + 'pt';
+                        deltaCls = p.delta > 0 ? 'passed' : (p.delta < 0 ? 'failed' : '');
+                    }
+                    tr.appendChild(el('td', { class: 'claim-status ' + deltaCls, text: deltaText }));
+                    const bs = p.variants.baseline.status;
+                    const is = p.variants.improved.status;
+                    let statusText = bs === 'completed' && is === 'completed' ? '✓ 完了' :
+                        (bs === 'not_run' && is === 'not_run') ? '⏳ 未実行' :
+                        '⏳ 進行中';
+                    tr.appendChild(el('td', { text: statusText }));
+                    tbody.appendChild(tr);
+                }
+
+                // Overall callout
+                if (s.fully_completed === s.total_papers) {
+                    $('dd-overall-callout').innerHTML = `
+                        <strong>全 ${s.total_papers} 論文で測定完了。</strong>
+                        改善が効いた（Δ &gt; 0）論文は <strong>${s.improved_count} / ${s.total_papers}</strong>。
+                        改善前 ${(papers.reduce((a, p) => a + (p.variants.baseline.hierarchical_score || 0), 0) / papers.length).toFixed(1)}%（平均） →
+                        改善後 ${(papers.reduce((a, p) => a + (p.variants.improved.hierarchical_score || 0), 0) / papers.length).toFixed(1)}%（平均）。
+                    `;
+                } else {
+                    $('dd-overall-callout').innerHTML = `
+                        <strong>評価進行中</strong> — 5/1 朝までに完走予定の ${s.total_papers} 論文中、
+                        現在 ${s.fully_completed} 論文が完了しています。完走分のみグラフと表に表示しています。
+                    `;
+                }
+
+                // Improvements detail
+                const impHost = $('dd-improvements');
+                for (const imp of d.improvements || []) {
+                    const card = el('div', { class: 'method-block' });
+                    card.appendChild(el('h4', { text: imp.name }));
+                    card.appendChild(el('p', { text: imp.description }));
+                    if (imp.files && imp.files.length) {
+                        const ul = el('ul');
+                        for (const f of imp.files) {
+                            ul.appendChild(el('li', { html: '<code>' + f + '</code>' }));
+                        }
+                        card.appendChild(el('p', { html: '<strong>変更ファイル:</strong>' }));
+                        card.appendChild(ul);
+                    }
+                    impHost.appendChild(card);
+                }
+
+                // Failures (placeholder until batch results arrive)
+                const failHost = $('dd-failures');
+                const failures = papers.filter(p => p.delta != null && p.delta <= 0);
+                if (failures.length === 0) {
+                    failHost.innerHTML = `
+                        <p style="color:#555;font-size:14px;">
+                            現時点で「改善が効かなかったケース」のデータは集計中です。バッチ評価が完走次第ここに掲載します。
+                        </p>
+                    `;
+                } else {
+                    for (const p of failures) {
+                        const card = el('div', { class: 'cycle-card regressed' });
+                        card.appendChild(el('div', { class: 'cycle-num', text: p.label }));
+                        card.appendChild(el('div', { class: 'desc',
+                            text: `baseline ${p.variants.baseline.hierarchical_score}% → improved ${p.variants.improved.hierarchical_score}% (Δ ${p.delta})` }));
+                        failHost.appendChild(card);
+                    }
+                }
+
+                if (d.note) {
+                    const noteBox = el('div', { class: 'note-box', html: '<strong>評価モードと注意点:</strong> ' + d.note });
+                    document.querySelector('#failure-cases').appendChild(noteBox);
+                }
+
+            } catch (e) {
+                console.error(e);
+                $('dd-summary').textContent = 'データ読み込みエラー: ' + e.message;
+            }
+        })();
+    </script>
+</body>
+</html>
