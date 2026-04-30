@@ -673,7 +673,6 @@ def build_agent_comparison() -> dict:
             "label": "主体 A: 人間 + Claude",
             "harness": "Claude Code 標準",
             "skills": "—",
-            "hours": 13,
             "scope": "5 論文 × 2 variants 全 evaluation",
             "improvement_metric": "5 論文 mean +3.6 pt",
             "improvement_value": 3.6,
@@ -687,7 +686,6 @@ def build_agent_comparison() -> dict:
             "label": "主体 B: ARA (15 skills)",
             "harness": "ARA sustainer (2 cycle × 4 phase)",
             "skills": "ARA 同梱 15 skills",
-            "hours": 1,
             "scope": "1 論文 × rubric subset 7 ノード",
             "improvement_metric": "subset で 15.7% → 40.0% (+24.3 pp)",
             "improvement_value": 24.3,
@@ -701,7 +699,6 @@ def build_agent_comparison() -> dict:
             "label": "主体 C: ARA + research-prime (123 skills)",
             "harness": "ARA sustainer (cycle 1 半、harness 早期 exit)",
             "skills": "research-prime: ARA 16 + Orchestra 95 + new/ 12 = 123 skills",
-            "hours": 0.27,
             "scope": "Researcher + Evaluator のみ、cycle 2 未到達",
             "improvement_metric": "数値結果なし (定性のみ)",
             "improvement_value": 0,
@@ -740,7 +737,7 @@ def build_agent_comparison() -> dict:
             "explain": "robust-clip の cli は subcommand (eval/build) の後に flag を取る構造。executor が --device cpu を subcommand 前に注入していたため argparse error。CLIIntrospector が --help を parse して構造を学習し、正しい順序で組み立てる。",
         },
         "self_critique": self_critique,
-        "meta_conclusion": "13 時間 / +3.6 pt / バグ 0 件 (主体 A) と 1 時間 / +24.3 pp / バグ 4 件 (主体 B) の比較は、「人間が改善案を考えるより agent にループを閉じさせる方が早く深い」という仮説の部分実証。ただし主体 B の +24.3pp は 1 論文 × 7 ノード subset の結果。",
+        "meta_conclusion": "+3.6 pt / バグ 0 件 (主体 A) と +24.3 pp / バグ 4 件 (主体 B) の比較は、「人間が改善案を考えるより agent にループを閉じさせる方が深い改善が出る」という仮説の部分実証。ただし主体 B の +24.3pp は 1 論文 × 7 ノード subset の結果。",
     }
 
 

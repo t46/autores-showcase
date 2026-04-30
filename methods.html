@@ -506,7 +506,7 @@ flowchart TD
                 「Reproduce Pipeline を強くする」というタスクを <strong>人間 + Claude の手作業</strong> と
                 <strong>自律研究エージェント (ARA)</strong> 2 系列に並列で投げ、結果を比較しました。
                 このセクションでは、その実験をどう setup したかを説明します。
-                方法論として「agent に研究タスクを投げて夜間で回す」フローを再利用可能にするのが目的です。</p>
+                方法論として「agent に研究タスクを並行で投げる」フローを再利用可能にするのが目的です。</p>
             </div>
 
             <h3>登場する 3 つのリポジトリ</h3>
@@ -584,7 +584,7 @@ graph TB
             <h3>結果の比較は <a href="./reproduce-deep-dive.html#meta-experiment">Deep Dive §4</a> へ</h3>
             <div class="callout">
                 methods.html では <strong>セットアップ</strong> までを説明します。
-                定量結果と「人間 13h で +3.6pt」 vs 「agent 1h で +24.3pp + バグ 4 件」の比較、
+                定量結果と「人間 +3.6pt / バグ 0 件」 vs 「agent +24.3pp / バグ 4 件」の比較、
                 ARA が見つけた既存バグ 4 件、H4 仮説の per-node breakdown、failure taxonomy 4 クラスタ、
                 CLIIntrospector の F2 実証例、Self-Evaluator の自己校正は、
                 すべて <a href="./reproduce-deep-dive.html#meta-experiment">Reproduce Deep Dive の §4</a> に収めています。

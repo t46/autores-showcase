@@ -57,7 +57,7 @@
 
             <div class="intro-box">
                 <strong>このページを 1 文で:</strong>
-                論文 PDF から AI が再現コードを自動生成する仕組み (<strong>Reproduce Pipeline</strong>) を 13 時間で強化し、
+                論文 PDF から AI が再現コードを自動生成する仕組み (<strong>Reproduce Pipeline</strong>) を強化し、
                 5 論文で再測定して、さらに <strong>同じタスクを自律研究エージェント (ARA) にも並行で解かせた</strong> 結果をまとめたものです。
                 結果ページの <a href="./index.html#reproduce">§3 Reproduce Pipeline</a> の続編で、
                 §3 が「1 論文で再現スコア 0.5 だった」と報告したのに対し、本ページは「ではどう強化したか」「強化はどう効いたか」「agent はもっと深い改善を見つけたのか」を扱います。
@@ -153,10 +153,10 @@
 
             <h3 id="lead-toc"><span class="sub-num">§0.5</span> このページの構成</h3>
             <ul style="font-size:14px;line-height:1.8;color:#333;margin:6px 0 0 22px;">
-                <li><a href="#comparison"><strong>§1 改善前 / 改善後 — 5 論文での比較</strong></a> — 5 論文の hierarchical_score を bar chart と表で。 <em>(=「人間 + Claude が 13 時間で出した結果」)</em></li>
+                <li><a href="#comparison"><strong>§1 改善前 / 改善後 — 5 論文での比較</strong></a> — 5 論文の hierarchical_score を bar chart と表で。 <em>(= 人間 + Claude が今回の強化ラウンドで出した結果)</em></li>
                 <li><a href="#improvements"><strong>§2 4 つのコード改善 — 何をどう直したか</strong></a> — 各改善のコード差分と効いたケース・効かなかったケース。</li>
                 <li><a href="#failure-cases"><strong>§3 失敗ケースの正直な開示</strong></a> — 改善後でも伸びなかった論文の理由 (arxiv_id 取り違え / Code-Dev mode の特性 / Claude 生成の確率性)。</li>
-                <li><a href="#meta-experiment"><strong>§4 並行実験 — agent に同じ問題を解かせる</strong></a> — 同じタスクを ARA に解かせた結果。 <em>(=「人間 13h で +3.6pt」 vs 「agent 1h で +24.3pp + バグ 4 件」の比較)</em></li>
+                <li><a href="#meta-experiment"><strong>§4 並行実験 — agent に同じ問題を解かせる</strong></a> — 同じタスクを ARA に解かせた結果。 <em>(= 人間 +3.6pt / バグ 0 件 vs agent +24.3pp / バグ 4 件 の比較)</em></li>
                 <li><a href="#next-steps"><strong>§5 次の一手</strong></a> — まだ着手していないこと、次の方向性。</li>
             </ul>
         </section>
@@ -176,7 +176,7 @@
                     <li><strong>Judge model:</strong> claude-sonnet-4-20250514 (公式 SimpleJudge は GPT-4o だが、コスト的に Sonnet を使用)</li>
                     <li><strong>baseline:</strong> 改善前のコード (main branch)</li>
                     <li><strong>improved:</strong> 4 改善を適用したコード (reproduce/strengthen-2026-04-30 branch)</li>
-                    <li><strong>選んだ 5 論文:</strong> PaperBench 23 論文のうち、rubric ノード数が比較的小さい 5 件 (stochastic-interpolants 94 / semantic-self-consistency 100 / sequential-neural-score-estimation 123 / mechanistic-understanding 128 / robust-clip 146)。これは時間制約 (5/1 12:00 まで) で全 23 論文を回せないため。</li>
+                    <li><strong>選んだ 5 論文:</strong> PaperBench 23 論文のうち、rubric ノード数が比較的小さい 5 件 (stochastic-interpolants 94 / semantic-self-consistency 100 / sequential-neural-score-estimation 123 / mechanistic-understanding 128 / robust-clip 146)。今回のラウンドのスコープでは全 23 論文を回しきらず、まず代表 5 件で baseline と improved を 1:1 比較できる体系を作ることに絞った。</li>
                 </ul>
             </div>
 
@@ -274,25 +274,26 @@
             <h2><span class="num">§4</span> 並行実験 — agent に同じ問題を解かせる</h2>
             <p class="lead">
                 「Reproduce Pipeline を強くする」というタスクを、人間の手作業 (上記 §1〜§3) と並行して、
-                自律研究エージェント (ARA) にも夜間 (4/30 21:30〜22:30) で解かせました。
+                自律研究エージェント (ARA) にも独立に解かせました。
                 同じ問題を <strong>3 つの主体に並列で投げる</strong> 構図で、結果を比較します。
             </p>
 
             <!-- §4.1 構図 (Mermaid) -->
             <h3 id="meta-topology"><span class="sub-num">§4.1</span> 実験構図</h3>
             <p style="font-size:14px;line-height:1.7;color:#333;">
-                同じ research question に対して、3 主体が独立に取り組みます。各 ARA は <code>scripts/new-research.sh</code>
-                で <code>runs/&lt;name&gt;/</code> に完全コピー scaffold (.claude + skills + workspace + 独立 git) され、
-                元 repo (<code>autonomous-research-agent</code>, <code>research-prime</code>, <code>autores/reproduce</code>) は読み取りのみ。
+                同じ research question に対して、3 主体が独立に取り組みます。主体 A は人間が Claude と一緒に Reproduce Pipeline 本体を改善する流れ。
+                主体 B / C は <code>scripts/new-research.sh</code> で <code>runs/&lt;name&gt;/</code> に完全コピー scaffold
+                (.claude + skills + workspace + 独立 git) され、元 repo
+                (<code>autonomous-research-agent</code>, <code>research-prime</code>, <code>autores/reproduce</code>) は読み取りのみ。
                 改善案は ARA project 内 <code>experiments/</code> に閉じます。
             </p>
             <div class="flow-card">
                 <div class="mermaid">
 graph LR
     Q[Research Question:<br/>PaperBench Code-Dev で<br/>hierarchical_score を上げる]
-    Q --> A[主体 A<br/>人間 + Claude<br/>13 時間]
-    Q --> B[主体 B<br/>ARA harness × ARA 15 skills<br/>1 時間 自律 2 cycle]
-    Q --> C[主体 C<br/>ARA harness × research-prime 123 skills<br/>16 分 cycle 1 半]
+    Q --> A[主体 A<br/>人間 + Claude<br/>強化ラウンド]
+    Q --> B[主体 B<br/>ARA harness × ARA 15 skills<br/>自律 2 cycle]
+    Q --> C[主体 C<br/>ARA harness × research-prime 123 skills<br/>cycle 1 半 で harness 早期 exit]
     A --> RA[5 論文バッチ再測定<br/>mean +3.6 pt]
     B --> RB[既存バグ 4 件発見<br/>+ H4 仮説 +24.3 pp on subset]
     C --> RC[failure 4 クラスタ分類<br/>+ Layer 0 validator 2 件<br/>CLIIntrospector F2 実証]
@@ -311,38 +312,33 @@ graph LR
             </div>
 
             <!-- §4.2 直接比較 (Chart.js) -->
-            <h3 id="meta-direct-compare"><span class="sub-num">§4.2</span> 投入時間と発見の量 — 直接比較</h3>
+            <h3 id="meta-direct-compare"><span class="sub-num">§4.2</span> 出てきたものを並べる — 改善幅 / 既存バグ発見数 / Claim 数</h3>
             <p style="font-size:14px;line-height:1.7;color:#333;">
-                左: 投入時間 (時間)。右: 改善幅 (主体ごとに metric が異なる点に注意 — 主体 A は 5 論文 mean pt、
-                主体 B は 1 論文 subset pp)。バーの高さの絶対比較ではなく、
-                <strong>「人間 13h で +3.6pt / バグ 0 件」と「agent 1h で +24.3pp / バグ 4 件」</strong>
-                という時間効率の差を見るためのプロットです。
+                3 主体が同じ research question に対して何を返してきたかを 3 つの軸で並べます。
+                改善幅は <strong>単位が主体ごとに異なる</strong> ことに注意 — 主体 A は 5 論文 mean の pt 差分、
+                主体 B は 1 論文 rubric subset での pp 差分。絶対値の比較ではなく、
+                <strong>「人間は測定インフラを底上げした」「agent は人間が見落としたバグと深い改善仮説を出した」</strong>
+                という質の違いを見るためのプロットです。
             </p>
             <div class="chart-grid-2">
-                <div class="chart-card">
-                    <h4>投入時間 (時間)</h4>
-                    <div class="chart-wrap"><canvas id="chart-meta-hours"></canvas></div>
-                </div>
                 <div class="chart-card">
                     <h4>改善幅 (単位は主体ごとに異なる)</h4>
                     <div class="chart-wrap"><canvas id="chart-meta-improve"></canvas></div>
                 </div>
-            </div>
-            <div class="chart-grid-2">
                 <div class="chart-card">
                     <h4>発見した既存バグ件数</h4>
                     <div class="chart-wrap"><canvas id="chart-meta-bugs"></canvas></div>
                 </div>
-                <div class="chart-card">
-                    <h4>登録された Claim 数 (Belief Store)</h4>
-                    <div class="chart-wrap"><canvas id="chart-meta-claims"></canvas></div>
-                </div>
+            </div>
+            <div class="chart-card">
+                <h4>登録された Claim 数 (Belief Store)</h4>
+                <div class="chart-wrap"><canvas id="chart-meta-claims"></canvas></div>
             </div>
 
             <!-- §4.3 ARA-a が見つけた既存バグ 4 件 -->
             <h3 id="meta-bugs"><span class="sub-num">§4.3</span> ARA が見つけた既存バグ 4 件</h3>
             <p style="font-size:14px;line-height:1.7;color:#333;">
-                主体 B (ARA 15 skills) が、人間 + Claude の 13 時間が見落としていた既存 reproduce repo のコード問題を
+                主体 B (ARA 15 skills) が、人間 + Claude の強化ラウンドが見落としていた既存 reproduce repo のコード問題を
                 4 件発見しました。すべて Belief Store の Claim として記録され、対応する Evidence が ledger に紐付いています。
             </p>
             <div id="meta-bugs-list" class="bug-list"></div>
@@ -399,10 +395,12 @@ graph LR
             <!-- メタ結論 callout -->
             <div class="callout" id="meta-conclusion-box" style="margin-top:20px;">
                 <strong>メタな結論</strong>:
-                人間 + Claude が 13 時間かけて出した <strong>+3.6pt / バグ 0 件</strong> よりも、
-                ARA が 1 時間で出した <strong>+24.3pp (subset) / バグ 4 件</strong> のほうが、定量的にも定性的にも大きい。
+                人間 + Claude が今回の強化ラウンドで出した <strong>+3.6pt / バグ 0 件</strong> よりも、
+                ARA が並行で出した <strong>+24.3pp (subset) / 既存バグ 4 件</strong> のほうが、定量的にも定性的にも大きい。
+                人間側は「測定インフラを底上げした」(5 論文で正しく測れるようになった) ことが本質、
+                agent 側は「生成コード本体の質的改善に直接効く介入を見つけた」ことが本質、と読めます。
                 「Reproduce Pipeline を強くする」というタスクは、
-                <strong>人間が手作業で改善を考えるより、agent にループを閉じさせる方が早く深い</strong> 可能性が高いことを部分的に実証しました。
+                <strong>人間が改善案を考えるより、agent にループを閉じさせる方が深い改善が出る</strong> 可能性が高いことを部分的に実証しました。
                 ただし主体 B の +24.3pp は <strong>1 論文 × 7 ノード subset の結果</strong> であり、5 論文 × 全 rubric ノードでの再現はまだです。
                 次の一手は §5 へ。
             </div>
@@ -411,7 +409,7 @@ graph LR
         <!-- ===================== §5 次の一手 ===================== -->
         <section class="section" id="next-steps">
             <h2><span class="num">§5</span> 次の一手 — まだ着手していないこと</h2>
-            <p class="lead">5/1 までの 13 時間で進めたのは「最も効きそうな所」と「複数論文での測定」、そして §4 で示した「agent に解かせる実験」。次に取り組むべき項目を正直に列挙します。</p>
+            <p class="lead">今回のラウンドで進めたのは「最も効きそうな所」と「複数論文での測定」、そして §4 で示した「agent に解かせる並行実験」。次に取り組むべき項目を正直に列挙します。</p>
 
             <h3>短期（次の 1-2 週間）</h3>
             <table class="kv-table">
@@ -475,10 +473,12 @@ graph LR
             <p style="font-size:14.5px;line-height:1.75;">
                 AutoRes グループが取り組んでいる「研究の自動化」のうち、<strong>論文再現は最も重要かつ未解決</strong>な部分です。
                 業界全体で end-to-end の数値一致は <strong>0%</strong>（PRBench）、環境構築の成功率は <strong>&lt; 7%</strong>（EnvBench）。
-                本 Deep Dive は、この絶望的な数字に対して我々が <strong>13 時間で何ができたか</strong> を正直に共有するものです。
+                本 Deep Dive は、この絶望的な数字に対して我々の今のラウンドで何ができたか・何が見えたかを正直に共有するものです。
                 <br><br>
                 改善前 0.5 → 改善後 X% という結果が、絶対値としては小さくとも、
-                「複数論文で測定可能な体系」と「正直なボトルネック分析」を AutoRes グループに提供することが本日の目的です。
+                「複数論文で測定可能な体系」と「正直なボトルネック分析」、そして
+                「agent に同じ問題を投げて何が返ってくるかを測る」という <strong>メタな実験フレーム</strong>
+                を AutoRes グループに提供することが目的です。
             </p>
             <p style="font-size:13.5px;color:#555;margin-top:14px;">
                 これは <a href="./index.html">結果ページ §3</a> と <a href="./methods.html#reproduce">手法ページ §3</a> の続編です。
@@ -696,14 +696,7 @@ graph LR
                     scales: { y: { beginAtZero: true, ticks: { font: { size: 12 } } }, x: { ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 0, minRotation: 0, callback: function(v, i){ const lbl = this.getLabelForValue(v); return lbl.length > 18 ? lbl.slice(0,18)+'…' : lbl; } } } }
                 };
 
-                // §4.2 Chart 1: hours
-                new Chart($('chart-meta-hours').getContext('2d'), {
-                    type: 'bar',
-                    data: { labels, datasets: [{ data: d.subjects.map(s => s.hours), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
-                    options: { ...baseChartOpts, plugins: { ...baseChartOpts.plugins, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} 時間` } } }, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, title: { display: true, text: '時間' } } } }
-                });
-
-                // §4.2 Chart 2: improvement
+                // §4.2 Chart 1: improvement
                 new Chart($('chart-meta-improve').getContext('2d'), {
                     type: 'bar',
                     data: { labels, datasets: [{ data: d.subjects.map(s => s.improvement_value), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
