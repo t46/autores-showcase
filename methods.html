@@ -6,6 +6,22 @@
     <title>AutoRes — 手法・タスク説明</title>
     <meta name="description" content="AutoRes 4 components の前提技術と「何をやらせているか / どういう手法か / 具体的にどう動いているか」を、前提知識ゼロから読める形で説明。">
     <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#f0f4ff',
+                primaryBorderColor: '#0066cc',
+                primaryTextColor: '#1a1a1a',
+                lineColor: '#0066cc',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                fontSize: '13px',
+            },
+            flowchart: { curve: 'basis', padding: 14 },
+        });
+    </script>
 </head>
 <body>
     <nav class="site-nav">
@@ -144,6 +160,30 @@
                     <li><strong>再採点</strong>: 同じ rubric で新コードを採点。スコア推移を記録</li>
                 </ol>
 
+                <h4>実処理の流れ — どこで Claude が呼ばれ、何が起きているか</h4>
+                <div class="flow-card">
+                    <div class="mermaid">
+flowchart TD
+    A[arXiv URL: 2310.03725] --> B["論文 PDF 取得"]
+    B --> C["Claude #40;sonnet#41;<br/>論文記述から実装を一から生成"]
+    C --> D["v0 code"]
+    D --> E["PaperBench SimpleJudge<br/>Claude #40;sonnet-4#41; が 58 ノードを採点"]
+    E --> F["v0 = 43.2%<br/>各ノードに score + reasoning"]
+    F --> G["低スコアノード抽出"]
+    G --> H["Claude<br/>論文 + v0 code + 失敗分析を入力<br/>→ 改善版コードを生成"]
+    H --> I["v1 code"]
+    I --> J["再採点"]
+    J --> K["v1 = 67.5%"]
+    K --> L["同じ反復"]
+    L --> M["v2 = 94.5%"]
+    style C fill:#fff8e1,stroke:#f9a825
+    style E fill:#fff8e1,stroke:#f9a825
+    style H fill:#fff8e1,stroke:#f9a825
+    style M fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+                    </div>
+                    <div class="flow-caption">黄色 = Claude API が呼ばれる箇所。1 反復で <strong>2 回 Claude が呼ばれる</strong>（採点と改善生成）。Stochastic Interpolants の場合、合計で約 ¥300〜500 / 1 反復。</div>
+                </div>
+
                 <h4>各反復で具体的に変えたこと（Stochastic Interpolants の例）</h4>
                 <table class="kv-table">
                     <thead><tr><th>反復</th><th>主な変更点（人間が見ても分かるレベルで）</th></tr></thead>
@@ -199,6 +239,30 @@
                     <li>結果（精度・損失・提案内容・diff）を <code>cycle-NNNN.json</code> に記録</li>
                 </ol>
 
+                <h4>実処理の流れ — 1 サイクルで何が呼ばれるか</h4>
+                <div class="flow-card">
+                    <div class="mermaid">
+flowchart TD
+    A["現在の train.py"] --> B["訓練 #40;CPU 1-3分#41;<br/>CIFAR-10 でテスト精度測定"]
+    B --> C{"精度 vs best"}
+    C -->|"退行 #40;Δ大きく負#41;"| RB["best チェックポイントへ自動ロールバック"]
+    C -->|"通常"| D["Claude<br/>失敗分析 + 改善案生成<br/>#40;6 カテゴリから1つ#41;"]
+    D --> E["NRR check_proposal#40;#41;<br/>過去の類似失敗を照合"]
+    E --> F{"判定"}
+    F -->|"avoid"| G["Claude に別方向を再提案させる"]
+    G --> E
+    F -->|"proceed / caution"| H["train.py を自動修正<br/>#40;diff を適用#41;"]
+    H --> I["再訓練"]
+    I --> J["cycle-NNNN.json に記録<br/>#40;精度・損失・diff・カテゴリ・信頼度#41;"]
+    J --> A
+    RB --> A
+    style D fill:#fff8e1,stroke:#f9a825
+    style G fill:#fff8e1,stroke:#f9a825
+    style E fill:#f0f4ff,stroke:#0066cc
+                    </div>
+                    <div class="flow-caption">黄色 = Claude API、青 = NRR（自作の失敗 DB）。NRR が <code>avoid</code> を返したら<strong>強制的に別方向を提案</strong>させる仕組みが、LLM の偏りを抑える鍵。</div>
+                </div>
+
                 <h4>実際に走った 5 サイクル（結果ページの数字に対応）</h4>
                 <table class="kv-table">
                     <thead><tr><th>サイクル</th><th>提案</th><th>結果</th></tr></thead>
@@ -250,6 +314,32 @@
                     <li><strong>Result Verification（数値検証）</strong> &lt;1 秒<br>Claude が論文の Table/Figure から数値を抽出 → 実行結果の metrics と <code>±5%</code> 許容で比較。一致しなければ理由を記録</li>
                 </ol>
 
+                <h4>実処理の流れ — 5 ステージそれぞれで何が起きるか</h4>
+                <div class="flow-card">
+                    <div class="mermaid">
+flowchart TD
+    A["arXiv URL"] --> S1["Stage 1: Paper Fetching #40;~15s#41;"]
+    S1 --> S1a["arXiv API で PDF 取得"]
+    S1a --> S1b["Claude<br/>論文から claims/hyperparams を構造化抽出"]
+    S1b --> S2["Stage 2: Code Finding #40;~90s#41;"]
+    S2 --> S2a{"公式 GitHub あり?"}
+    S2a -->|"yes"| S2b["clone"]
+    S2a -->|"no"| S2c["Claude<br/>論文記述から一から生成"]
+    S2b --> S3["Stage 3: Env Building #40;~0.3s#41;"]
+    S2c --> S3
+    S3 --> S3a["venv 作成 + 依存解決"]
+    S3a --> S4["Stage 4: Execution #40;~56s#41;"]
+    S4 --> S4a["訓練/推論実行 + stdout/stderr キャプチャ"]
+    S4a --> S5["Stage 5: Verification #40;<1s#41;"]
+    S5 --> S5a["Claude<br/>論文 Table から数値抽出 → 実行結果と ±5% 比較"]
+    S5a --> R["再現スコア + claim 検証結果"]
+    style S1b fill:#fff8e1,stroke:#f9a825
+    style S2c fill:#fff8e1,stroke:#f9a825
+    style S5a fill:#fff8e1,stroke:#f9a825
+                    </div>
+                    <div class="flow-caption">黄色 = Claude API が呼ばれる箇所。<strong>5 ステージのうち 3 箇所で Claude を使う</strong>（解析・生成・検証）。Stage 2 が時間の 56%（90 秒）を占める。</div>
+                </div>
+
                 <h4>Stochastic Interpolants での実走 — 161 秒で完走</h4>
                 <p>5 ステージ全て成功で、<strong>合計 161 秒</strong>。人手なら数時間の作業がエージェント単独で完了。ただし<strong>再現スコアは 0.5</strong>（後述）。</p>
 
@@ -293,6 +383,24 @@
                     <li>関連度でソート、上位 N 件を CLI 出力</li>
                 </ol>
 
+                <h4>実処理の流れ — クエリから論文カードまで</h4>
+                <div class="flow-card">
+                    <div class="mermaid">
+flowchart TD
+    Q["ユーザー入力<br/>クエリ + --context"] --> P1["arXiv API<br/>キーワード検索"]
+    Q --> P2["Semantic Scholar API<br/>意味検索"]
+    P1 --> M["重複除去 + マージ"]
+    P2 --> M
+    M --> CL["Claude<br/>各論文の title+abstract を読み<br/>--context に対する関連度+理由を出力"]
+    CL --> R["関連度ソート"]
+    R --> O["上位 N 件の論文カード<br/>#40;関連度 + 判断理由 + arxiv_id#41;"]
+    style CL fill:#fff8e1,stroke:#f9a825
+    style P1 fill:#f0f4ff,stroke:#0066cc
+    style P2 fill:#f0f4ff,stroke:#0066cc
+                    </div>
+                    <div class="flow-caption">黄色 = Claude API、青 = 外部 API。各論文の関連度判定で <strong>論文数だけ Claude が呼ばれる</strong>（5 件なら 5 回）。30〜60 秒で完了。</div>
+                </div>
+
                 <h4>なぜ 2 ソース並列か</h4>
                 <p>arXiv は preprint（査読前）中心で機械学習の最新動向に強い。Semantic Scholar は引用ネットワークと意味検索が強く、「同じトピックで似た論文」を取りやすい。<strong>同じクエリで取れる論文集合が大きく異なる</strong>ので、両方叩いて重複除去するのが取りこぼしを最小化する設計です。</p>
 
@@ -331,14 +439,44 @@
                     </tbody>
                 </table>
 
-                <h4>統合運用イメージ</h4>
+                <h4>統合運用 — 4 コンポーネントが end-to-end でどう繋がるか</h4>
+                <div class="flow-card">
+                    <div class="mermaid">
+flowchart TD
+    H["人間: 研究テーマを設定<br/>例: self-improving ML agents"] --> LS["① Literature Scout<br/>関連論文リスト #40;5-10件#41;"]
+    LS --> SEL["人間 or Claude が 1 本選ぶ"]
+    SEL --> RP["② Reproduce Pipeline<br/>arXiv URL → 5 ステージ #40;~3分#41;"]
+    RP --> RPout["再現コード v0 + 実行結果<br/>+ 再現スコア"]
+    RPout --> CHECK{"スコア許容?"}
+    CHECK -->|"低い"| PB["③ PaperBench Iter<br/>反復改善ループ"]
+    PB --> PBout["改善コード v1, v2..<br/>#40;43% → 67% → 94%#41;"]
+    PBout --> SI
+    CHECK -->|"OK"| SI["④ Self-Improving Agent<br/>ハイパラ/アーキテクチャ自動探索<br/>#40;NRR + rollback#41;"]
+    SI --> NEW["新しい知見<br/>#40;改善された train.py +<br/>失敗パターン蓄積#41;"]
+    NEW --> KNOW["知見ストア #40;NRR + claims#41;"]
+    KNOW -.->|"次の探索を方向づける"| LS
+    style LS fill:#e3f2fd,stroke:#1976d2
+    style RP fill:#e3f2fd,stroke:#1976d2
+    style PB fill:#e3f2fd,stroke:#1976d2
+    style SI fill:#e3f2fd,stroke:#1976d2
+    style KNOW fill:#fff8e1,stroke:#f9a825
+                    </div>
+                    <div class="flow-caption">青いボックス = 4 コンポーネント。点線矢印 = 蓄積した失敗パターンが次の文献探索を方向づけるフィードバックループ。これが回り続けると<strong>「24/365 止まらない研究エージェント」</strong>になる。</div>
+                </div>
+
+                <h4>同じことを別の見方で（時間軸）</h4>
                 <ol class="flow-steps">
-                    <li>Literature Scout で「最近の self-improving ML 系の重要論文」を取得</li>
-                    <li>Reproduce Pipeline でそれを再現してみる</li>
-                    <li>PaperBench Iter で再現コードを SOTA レベルまで磨く</li>
-                    <li>Self-Improving Agent でハイパラ・アーキテクチャを自動探索</li>
-                    <li>結果を新しい知見として蓄積、ループ</li>
+                    <li><strong>朝</strong> Literature Scout が「今日の関連論文 5 本」を返す（30 秒）</li>
+                    <li><strong>選択</strong> 1 本を選ぶ（人間 or 自動）</li>
+                    <li><strong>3 分後</strong> Reproduce Pipeline が再現完了。Stage 2 のコードと再現スコアが出る</li>
+                    <li><strong>15 分後</strong> PaperBench Iter で 2 反復まわす。スコアが 43% → 67% → 94% と上がる</li>
+                    <li><strong>1 時間後</strong> Self-Improving Agent が改善された <code>train.py</code> を走らせ、ハイパラ自動探索を開始</li>
+                    <li><strong>翌朝</strong> 新しい知見（改善版モデル + 失敗パターン）が NRR に蓄積される。次の Literature Scout がこれを参考に次の論文探索を方向づける</li>
                 </ol>
+
+                <div class="callout">
+                    <strong>現状:</strong> ②③④ は単独運用で動作確認済み。①②③④ を完全に自動連結して 24/365 で回す統合運用は<strong>次の段階</strong>。Self-Improving Agent の対象タスクを「PaperBench スコア改善」に置き換えれば原理的に可能。
+                </div>
 
                 <h4>残された大きな課題（AutoRes グループとして取り組みたい領域）</h4>
                 <ul>
