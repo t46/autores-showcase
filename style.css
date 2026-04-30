@@ -21,6 +21,52 @@ code, pre, .mono {
     font-size: 13px;
 }
 
+/* ---------------- site nav ---------------- */
+.site-nav {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: saturate(1.5) blur(6px);
+    background: rgba(255, 255, 255, 0.92);
+}
+.site-nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.site-nav .brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+.site-nav ul {
+    list-style: none;
+    display: flex;
+    gap: 4px;
+}
+.site-nav a {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    text-decoration: none;
+}
+.site-nav a:hover {
+    background: #f0f4ff;
+    color: #0066cc;
+    text-decoration: none;
+}
+.site-nav a.active {
+    background: #0066cc;
+    color: #fff;
+}
+
 /* ---------------- header / hero ---------------- */
 header.hero {
     background: #fff;
@@ -523,4 +569,101 @@ footer .gen-time {
     font-weight: 700;
     color: #0066cc;
     margin-right: 8px;
+}
+
+/* ---------------- methods page specific ---------------- */
+.method-block {
+    margin-top: 20px;
+}
+.method-block h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0066cc;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 18px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #f0f4ff;
+}
+.method-block p {
+    font-size: 14.5px;
+    line-height: 1.75;
+    margin: 8px 0 12px;
+    color: #333;
+}
+.method-block ul, .method-block ol {
+    margin: 8px 0 14px 22px;
+    font-size: 14px;
+    line-height: 1.75;
+}
+.method-block li { margin: 4px 0; }
+.method-block code {
+    background: #f5f5f5;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12.5px;
+}
+
+.task-card {
+    background: #f0f4ff;
+    border: 1px solid #d0deff;
+    border-left: 4px solid #0066cc;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 14px 0;
+}
+.task-card .task-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0066cc;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+.task-card .task-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1a1a;
+    line-height: 1.6;
+}
+
+.flow-steps {
+    counter-reset: step;
+    margin: 14px 0;
+    padding: 0;
+    list-style: none;
+}
+.flow-steps li {
+    counter-increment: step;
+    padding: 12px 16px 12px 56px;
+    position: relative;
+    background: #fafafa;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.65;
+}
+.flow-steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #0066cc;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kv-table th { width: 200px; }
+.kv-table td { color: #333; font-size: 14px; }
+@media (max-width: 720px) {
+    .kv-table th { width: auto; }
 }
