@@ -173,10 +173,97 @@
             </div>
         </section>
 
-        <!-- ===================== §4 次の一手 ===================== -->
+        <!-- ===================== §4 並行実験 (NEW) ===================== -->
+        <section class="section" id="meta-experiment">
+            <h2><span class="num">§4</span> 並行実験 — agent に同じ問題を解かせる</h2>
+            <p class="lead">
+                「Reproduce Pipeline を強くする」というタスクを、人間の手作業 (上記 §1〜§3) と並行して、
+                自律研究エージェント (ARA) にも夜間 (4/30 21:30〜22:30) で解かせました。
+                同じ問題を <strong>3 つの主体に並列で投げる</strong> 構図です。
+            </p>
+
+            <h3>構図</h3>
+            <table class="kv-table">
+                <tbody>
+                    <tr>
+                        <th>主体 A: 人間 + Claude (§1〜§3)</th>
+                        <td>13 時間で 4 改善を実装し、5 論文 × 2 variants で再測定。改善は「測定インフラの整備」が中心。</td>
+                    </tr>
+                    <tr>
+                        <th>主体 B: ARA (15 skills)</th>
+                        <td><a href="https://github.com/t46/autonomous-research-agent" target="_blank" rel="noopener">自律研究エージェント (ARA)</a> を、ARA 同梱の 15 スキルだけで起動。 sustainer による 2 cycle × 4 phase 自律実行。</td>
+                    </tr>
+                    <tr>
+                        <th>主体 C: ARA + research-prime (123 skills)</th>
+                        <td>同じく ARA harness、ただし skill セットを <code>research-prime/skills/</code> に差し替え (ARA 16 + Orchestra 95 + new/ 12 = 123 件)。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>結果の比較</h3>
+            <table class="kv-table">
+                <thead>
+                    <tr><th>主体</th><th>主な発見</th><th>定量効果</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>人間 + Claude</td>
+                        <td>4 改善 (alias / success-strict / pdfplumber / max_tokens)</td>
+                        <td>5 論文 mean <strong>+3.6pt</strong> (3 改善 / 2 regress)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ARA (15 skills)</strong></td>
+                        <td>
+                            (a) 既存 reproduce repo のバグ 4 件発見:<br>
+                            &nbsp;&nbsp;・evaluation の glob が non-recursive で submission サブディレクトリ未走査<br>
+                            &nbsp;&nbsp;・Stage 2 prompt の scope 指示不足で生成コードが題意を外す<br>
+                            &nbsp;&nbsp;・code 候補ディレクトリ選択がボトルネック<br>
+                            &nbsp;&nbsp;・evaluation.json の paper_id metadata 誤記<br>
+                            (b) 仮説 H4 (targeted prompt fix) を実機で生成→評価
+                        </td>
+                        <td>1 論文 (stochastic-interpolants) の rubric subset で <strong>15.7% → 40.0% (+24.3pp)</strong></td>
+                    </tr>
+                    <tr>
+                        <td>ARA + research-prime (123 skills)</td>
+                        <td>
+                            failure pattern を 4 クラスタに分類 (SyntaxError 40% / CLIArgMismatch 20% / NumpyVersionIncompat 20% / EvalMetadataBug 20%)<br>
+                            Layer 0 validator 2 件プロトタイプ (CLIIntrospector は robust-clip で実 F2 確認)
+                        </td>
+                        <td>cycle 途中で harness 早期 exit のため数値結果なし、定性のみ</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout">
+                <strong>メタな結論</strong>:
+                人間 + Claude が 13 時間かけて出した <strong>+3.6pt</strong> よりも、ARA が一晩で出した <strong>+24.3pp (subset)</strong> と
+                バグ 4 件のほうが大きい。「Reproduce Pipeline を強くする」というタスクは、
+                <strong>人間が手作業で改善を考えるより、agent にループを閉じさせる方が早く深い</strong> 可能性が高い、と示唆されました。
+                これは元々 §4 (現 §5) で「次の一手」として書いていた方向と整合しますが、
+                今夜の並行実験で「実際に効く」ことが部分的に確認できたのが新しい発見です。
+            </div>
+
+            <h3>取り出して再現環境に取り込めそうなもの</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                ARA が見つけた 4 バグは、いずれも実 reproduce repo のコード問題で、PR 化して merge すれば
+                §1 の baseline が変わる可能性があります。特に
+                <strong>「evaluation glob 非再帰」</strong> は、§3 で「stochastic-interpolants の "untested" 比率が高い」と
+                記述した一因と整合します (submission/training/inpainting_512.py が評価対象から漏れていた)。
+                明日朝の発表後、ARA 出力を順次取り込んで再測する予定です。
+            </p>
+
+            <h3>注意事項</h3>
+            <ul style="font-size:13px;line-height:1.7;color:#555;">
+                <li>+24.3pp は <strong>1 論文 × rubric の 7 ノードのみ</strong> での結果。全 5 論文 × 全ノードでの再現は未確認。</li>
+                <li>ARA の Evaluator 自身が「H4 fix を 5 論文に展開していない」「inpainting detection regex バグ」を flag しており、誇張せず受け取るべき。</li>
+                <li>主体 C (research-prime 123 skills) は cycle 2 まで届かず、Orchestra 95 スキルの効果は今夜は検証できなかった。再起動して再測する。</li>
+            </ul>
+        </section>
+
+        <!-- ===================== §5 次の一手 ===================== -->
         <section class="section" id="next-steps">
-            <h2><span class="num">§4</span> 次の一手 — まだ着手していないこと</h2>
-            <p class="lead">5/1 までの 13 時間で進めたのは「最も効きそうな所」と「複数論文での測定」。次に取り組むべき項目を正直に列挙します。</p>
+            <h2><span class="num">§5</span> 次の一手 — まだ着手していないこと</h2>
+            <p class="lead">5/1 までの 13 時間で進めたのは「最も効きそうな所」と「複数論文での測定」、そして §4 で示した「agent に解かせる実験」。次に取り組むべき項目を正直に列挙します。</p>
 
             <h3>短期（次の 1-2 週間）</h3>
             <table class="kv-table">
@@ -224,6 +311,13 @@
                 <strong>「論文発見（Literature Scout） → 再現（Reproduce） → 改善（PaperBench Iter） → 自動探索（Self-Improving）」</strong>
                 の end-to-end ループを 24/365 で回す。各論文の再現結果が NRR に蓄積され、次の探索を方向づける。
                 これが我々の AI Scientist の最終形です。
+            </p>
+            <p style="font-size:14px;line-height:1.7;color:#333;margin-top:12px;">
+                §4 の並行実験で「agent にループを閉じさせる」ことの初歩的な手応えが取れたので、
+                <strong>「人間が改善案を考えて実装する」フェーズを、できるだけ早く agent (ARA + research-prime)
+                に渡してしまう</strong> のが現実的な経路だと考えています。次の 1-2 週間は、
+                ARA が今夜見つけた 4 バグ + H4 を実コードに取り込み、その効果を 5 論文 → 23 論文へと拡大
+                しながら、ARA の出力を直接 reproduce repo の PR に流す自動橋渡しを作るのが課題です。
             </p>
         </section>
 
