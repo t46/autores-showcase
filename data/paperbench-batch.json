@@ -67,20 +67,20 @@
       "variants": {
         "baseline": {
           "status": "completed",
-          "hierarchical_score": 0.0,
-          "simple_average_score": 0.0,
+          "hierarchical_score": 64.53,
+          "simple_average_score": 64.3,
           "num_nodes": 50,
           "error": null
         },
         "improved": {
           "status": "completed",
-          "hierarchical_score": 0.0,
-          "simple_average_score": 0.0,
+          "hierarchical_score": 51.21,
+          "simple_average_score": 64.1,
           "num_nodes": 50,
           "error": null
         }
       },
-      "delta": 0.0
+      "delta": -13.32
     },
     {
       "id": "sequential-neural-score-estimation",
@@ -111,20 +111,20 @@
       "variants": {
         "baseline": {
           "status": "completed",
-          "hierarchical_score": 2.08,
-          "simple_average_score": 2.08,
+          "hierarchical_score": 23.12,
+          "simple_average_score": 21.81,
           "num_nodes": 36,
           "error": null
         },
         "improved": {
           "status": "completed",
-          "hierarchical_score": 0.0,
-          "simple_average_score": 0.0,
+          "hierarchical_score": 34.91,
+          "simple_average_score": 27.64,
           "num_nodes": 36,
           "error": null
         }
       },
-      "delta": -2.08
+      "delta": 11.79
     },
     {
       "id": "robust-clip",
@@ -133,28 +133,28 @@
       "variants": {
         "baseline": {
           "status": "completed",
-          "hierarchical_score": 0.0,
-          "simple_average_score": 0.0,
+          "hierarchical_score": 38.29,
+          "simple_average_score": 42.07,
           "num_nodes": 70,
           "error": null
         },
         "improved": {
           "status": "completed",
-          "hierarchical_score": 0.0,
-          "simple_average_score": 0.0,
+          "hierarchical_score": 29.23,
+          "simple_average_score": 34.79,
           "num_nodes": 70,
           "error": null
         }
       },
-      "delta": 0.0
+      "delta": -9.06
     }
   ],
   "stats": {
     "total_papers": 5,
     "fully_completed": 5,
-    "improved_count": 2
+    "improved_count": 3
   },
   "evaluation_mode": "PaperBench Code-Dev (claude-sonnet-4-20250514 as judge)",
   "note": "本評価は PaperBench Code-Dev mode（生成コードを judge にかける、実行不要、GPU 不要）。公式 SimpleJudge は GPT-4o だが、我々は claude-sonnet-4 を使用しているため絶対値は公式と直接比較不可。差分（baseline → improved）が我々の改善効果の指標。",
-  "_generated_at": "2026-04-30T12:09:11+00:00"
+  "_generated_at": "2026-04-30T12:48:11+00:00"
 }
