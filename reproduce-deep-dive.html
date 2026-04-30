@@ -157,7 +157,8 @@
                 <li><a href="#improvements"><strong>§2 4 つのコード改善 — 何をどう直したか</strong></a> — 各改善のコード差分と効いたケース・効かなかったケース。</li>
                 <li><a href="#failure-cases"><strong>§3 失敗ケースの正直な開示</strong></a> — 改善後でも伸びなかった論文の理由 (arxiv_id 取り違え / Code-Dev mode の特性 / Claude 生成の確率性)。</li>
                 <li><a href="#meta-experiment"><strong>§4 並行実験 — agent に同じ問題を解かせる</strong></a> — 同じタスクを ARA に解かせた結果。 <em>(= 人間 +3.6pt / バグ 0 件 vs agent +24.3pp / バグ 4 件 の比較)</em></li>
-                <li><a href="#next-steps"><strong>§5 次の一手</strong></a> — まだ着手していないこと、次の方向性。</li>
+                <li><a href="#pipeline-rethink"><strong>§6 パイプラインレベル改善実験</strong></a> — 「再現はどうあるべきか」を 4 mode 横並び比較で問い直す (NEW)</li>
+                <li><a href="#next-steps"><strong>§7 次の一手</strong></a> — まだ着手していないこと、次の方向性。</li>
             </ul>
         </section>
 
@@ -406,10 +407,84 @@ graph LR
             </div>
         </section>
 
-        <!-- ===================== §5 次の一手 ===================== -->
+        <!-- ===================== §6 パイプラインレベル改善実験 (NEW) ===================== -->
+        <section class="section" id="pipeline-rethink">
+            <h2><span class="num">§6</span> パイプラインレベル改善実験 — 「再現はどうあるべきか」を実装で問い直す</h2>
+            <p class="lead">
+                §1〜§3 の改善は「<strong>細かい修正</strong>」レベル (metric alias / pdfplumber / max_tokens など) でした。
+                §4 で並行実験した ARA は人間が見落としていた既存バグを 4 件指摘してくれましたが、
+                これだけでは「再現とは何をすることか」というパイプラインレベルの設計が問われていません。
+                §6 では <strong>ARA-提案 fix を実際に reproduce repo に取り込み</strong>、
+                さらに <strong>「再現はこうあるべきだ」を実装に落とした新 mode (rubric-aware Stage 2)</strong> を作って、
+                4 mode 横並びで比較します。
+            </p>
+
+            <!-- §6.1 4 つの ought-to -->
+            <h3 id="rethink-ought-to"><span class="sub-num">§6.1</span> 再現に求められる 4 つの "ought-to"</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                §1〜§5 を踏まえて、Reproduce Pipeline が「本来こうあるべき」だが今は出来ていない 4 つの方向性を明示します。
+                今回の §6 ではこのうち <strong>rubric-ground / decompose を本実験に組み込み</strong>、verify / iterate は次の一手として開示します。
+            </p>
+            <div class="term-grid" id="rethink-ought-grid"></div>
+
+            <!-- §6.2 ARA → Pipeline mapping -->
+            <h3 id="rethink-ara-map"><span class="sub-num">§6.2</span> ARA → Pipeline 対応表 — どの提案がどこに入ったか</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                §4 で並行実験した ARA が出した 4 件の提案を、実 reproduce repo にどう取り込んだかの mapping です。
+                C-008 / C-010 (evaluator バグ) と H4 + C-011 (Stage 2 prompt scope failure) を <code>ara-fixes</code> / <code>rubric-aware</code>
+                両 mode に組み込みました。C-007 (code dir selection) は実装規模が大きく今夜は scope 外。
+            </p>
+            <table class="kv-table" id="rethink-ara-table">
+                <thead><tr><th>ARA Claim</th><th>内容</th><th>取り込み先</th><th>修正ファイル</th></tr></thead>
+                <tbody></tbody>
+            </table>
+
+            <!-- §6.3 4-mode 比較 -->
+            <h3 id="rethink-modes"><span class="sub-num">§6.3</span> 4 mode 横並び比較</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                同じ 5 論文を 4 mode で評価しました:
+                <strong>baseline</strong> (改善前 / main branch) →
+                <strong>improved</strong> (4 改善 / strengthen branch) →
+                <strong>ara-fixes</strong> (improved + ARA 3 fix を pipeline に取込) →
+                <strong>rubric-aware</strong> (ara-fixes + Stage 2 prompt に rubric leaf 要件 checklist を直接注入)。
+                右側ほど「パイプライン設計の根本介入」が強くなる順で並べています。
+            </p>
+            <div class="chart-card">
+                <h4>5 論文 × 4 mode の hierarchical_score</h4>
+                <div class="chart-wrap" style="height:380px;"><canvas id="chart-rethink-grouped"></canvas></div>
+            </div>
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <h4>4 mode の mean (5 論文平均)</h4>
+                    <div class="chart-wrap"><canvas id="chart-rethink-mean"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h4>各論文の "best mode"</h4>
+                    <table class="kv-table" id="rethink-best-table" style="margin:0;"></table>
+                </div>
+            </div>
+
+            <!-- §6.4 学び (data 反映後にも更新) -->
+            <h3 id="rethink-lessons"><span class="sub-num">§6.4</span> 学び — どの ought-to が効いたか</h3>
+            <div id="rethink-lessons-body" style="font-size:14px;line-height:1.7;color:#333;"></div>
+
+            <!-- §6.5 残るもの -->
+            <h3 id="rethink-residue"><span class="sub-num">§6.5</span> 方法論として残るもの</h3>
+            <div class="callout">
+                <strong>「rubric は judge が何を見ているかを agent に教える教科書」</strong>:
+                Stage 2 prompt に rubric.json の leaf 要件を直接渡すという介入は、
+                論文 → コード生成の途中で「テストを先に見せる」ことに対応します。
+                <em>test-driven reproduction</em> という名前を付けてもよい設計原則です。<br><br>
+                これは Reproduce Pipeline を超えて、AutoRes グループ全体の方法論として転用可能です:
+                Self-Improving Agent が探索する仮説空間にも「測定 metric の構造を agent に教える」フェーズが
+                同じように使えるはずです。
+            </div>
+        </section>
+
+        <!-- ===================== §7 次の一手 ===================== -->
         <section class="section" id="next-steps">
-            <h2><span class="num">§5</span> 次の一手 — まだ着手していないこと</h2>
-            <p class="lead">今回のラウンドで進めたのは「最も効きそうな所」と「複数論文での測定」、そして §4 で示した「agent に解かせる並行実験」。次に取り組むべき項目を正直に列挙します。</p>
+            <h2><span class="num">§7</span> 次の一手 — まだ着手していないこと</h2>
+            <p class="lead">今回のラウンドで進めたのは「最も効きそうな所」「複数論文での測定」「§4 並行実験」「§6 パイプラインレベル介入」。次に取り組むべき項目を正直に列挙します。</p>
 
             <h3>短期（次の 1-2 週間）</h3>
             <table class="kv-table">
@@ -790,6 +865,127 @@ graph LR
 
             } catch (e) {
                 console.error('agent-comparison render failed:', e);
+            }
+        })();
+    </script>
+
+    <!-- ===================== §6 pipeline-rethink renderer ===================== -->
+    <script>
+        (async () => {
+            const $ = id => document.getElementById(id);
+            try {
+                const d = await fetch('./data/pipeline-rethink.json').then(r => r.json());
+
+                // §6.1 ought-to grid
+                const grid = $('rethink-ought-grid');
+                d.ought_to.forEach(o => {
+                    const card = document.createElement('div');
+                    card.className = 'term-card';
+                    const tagColor = o.key === 'rubric-ground' || o.key === 'decompose' ? '#0066cc' : '#9333ea';
+                    const tagLabel = (o.key === 'rubric-ground' || o.key === 'decompose') ? '今回の §6 で実装' : '次の一手';
+                    card.innerHTML = `
+                        <div class="term-name">${o.title} <span style="font-weight:400;color:#666;font-size:11px;">— ${o.ja}</span></div>
+                        <div class="term-desc">${o.explain}<br><span style="display:inline-block;margin-top:6px;padding:2px 8px;background:${tagColor === '#0066cc' ? '#e8f4ff' : '#f3e8ff'};color:${tagColor};border-radius:3px;font-size:11px;font-weight:600;">${tagLabel}</span> <span style="color:#888;font-size:11px;">→ ${o.addressed_by}</span></div>`;
+                    grid.appendChild(card);
+                });
+
+                // §6.2 ARA → Pipeline mapping table
+                const tbody = $('rethink-ara-table').querySelector('tbody');
+                d.ara_pipeline_map.forEach(m => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<th style="font-family:'SF Mono', Menlo, monospace;color:#0066cc;">${m.ara_claim}</th><td style="font-size:13px;">${m.title}<br><span style="color:#666;font-size:11.5px;">${m.fix}</span></td><td style="font-size:13px;">${m.incorporated_in}</td><td style="font-family:'SF Mono', Menlo, monospace;font-size:12px;color:#444;">${m.file}</td>`;
+                    tbody.appendChild(tr);
+                });
+
+                // §6.3 4-mode grouped bar
+                const variants = d.variants;
+                const variantColors = { baseline: 'rgba(180,180,180,0.7)', improved: 'rgba(58,170,119,0.75)', 'ara-fixes': 'rgba(0,102,204,0.75)', 'rubric-aware': 'rgba(194,24,91,0.85)' };
+                const variantBorders = { baseline: '#888', improved: '#3a7', 'ara-fixes': '#0066cc', 'rubric-aware': '#c2185b' };
+                const paperLabels = d.papers.map(p => p.id.replace(/-/g, '\n'));
+
+                new Chart($('chart-rethink-grouped').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: paperLabels,
+                        datasets: variants.map(v => ({
+                            label: v,
+                            data: d.papers.map(p => p.variants[v]?.hierarchical_score ?? null),
+                            backgroundColor: variantColors[v],
+                            borderColor: variantBorders[v],
+                            borderWidth: 1,
+                        })),
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? 'n/a'}` } } },
+                        scales: {
+                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'hierarchical_score (0–100)' } },
+                            x: { ticks: { font: { size: 11 } } }
+                        }
+                    }
+                });
+
+                // §6.3 mean chart
+                const meanLabels = variants;
+                const meanValues = variants.map(v => d.mode_means[v]);
+                new Chart($('chart-rethink-mean').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: meanLabels, datasets: [{ data: meanValues, backgroundColor: variants.map(v => variantColors[v]), borderColor: variants.map(v => variantBorders[v]), borderWidth: 2 }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y !== null ? `mean: ${ctx.parsed.y.toFixed(2)}` : 'not yet' } } },
+                        scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '5 論文 mean' } } }
+                    }
+                });
+
+                // §6.3 best-mode table
+                const bestTbl = $('rethink-best-table');
+                bestTbl.innerHTML = '<tbody>' + d.papers.map(p => {
+                    if (!p.best_variant) {
+                        return `<tr><th style="font-size:12px;">${p.id}</th><td style="font-size:12px;color:#888;">— (未完走)</td></tr>`;
+                    }
+                    const bv = p.best_variant;
+                    const tagColor = variantBorders[bv] || '#444';
+                    return `<tr><th style="font-size:12px;">${p.id}</th><td style="font-size:12px;"><span style="color:${tagColor};font-weight:600;">${bv}</span> <span style="color:#666;">${p.best_score?.toFixed(1) ?? '?'}</span></td></tr>`;
+                }).join('') + '</tbody>';
+
+                // §6.4 lessons (auto-narrative based on mode_means availability)
+                const lessons = $('rethink-lessons-body');
+                const m = d.mode_means;
+                if (m['ara-fixes'] === null && m['rubric-aware'] === null) {
+                    lessons.innerHTML = `<p style="color:#888;">⏳ ara-fixes / rubric-aware の評価バッチが進行中です。完走後にこのセクションが自動的にアップデートされます。</p>
+                    <p>暫定的な見立て: <strong>baseline ${m.baseline?.toFixed(2)} → improved ${m.improved?.toFixed(2)}</strong> (+${(m.improved - m.baseline).toFixed(2)} pt)。
+                    §1〜§5 で見せた「細かい修正」の効果がここまで。§6 ではこの先 (ara-fixes / rubric-aware) でどこまで動くかを検証します。</p>`;
+                } else {
+                    const parts = [];
+                    parts.push(`<p>5 論文 × 4 mode の hierarchical_score の mean を並べると以下:</p><ul style="margin-left:22px;font-size:13px;line-height:1.8;">`);
+                    variants.forEach(v => {
+                        if (m[v] !== null) parts.push(`<li><strong>${v}</strong>: ${m[v].toFixed(2)}</li>`);
+                    });
+                    parts.push(`</ul>`);
+
+                    if (m['ara-fixes'] !== null && m['improved'] !== null) {
+                        const d1 = (m['ara-fixes'] - m['improved']).toFixed(2);
+                        parts.push(`<p><strong>ARA-提案 fix の効果 (improved → ara-fixes)</strong>: ${d1 > 0 ? '+' : ''}${d1} pt の mean shift。
+                        ARA-a が指摘した glob 非再帰バグ (C-008) と Stage 2 prompt scope failure (H4 + C-011) を実プロダクトに取り込んだ結果です。</p>`);
+                    }
+                    if (m['rubric-aware'] !== null && m['ara-fixes'] !== null) {
+                        const d2 = (m['rubric-aware'] - m['ara-fixes']).toFixed(2);
+                        parts.push(`<p><strong>Rubric-aware Stage 2 の追加効果 (ara-fixes → rubric-aware)</strong>: ${d2 > 0 ? '+' : ''}${d2} pt。
+                        rubric.json の leaf 要件 (重み付き checklist) を Stage 2 prompt に直接注入することで、Claude が
+                        「judge が何を見るか」を事前に知ってコードを書けるようにしました。 ${d2 > 0 ? '効果が出ています。' : '今回の measurement では rubric 注入が単独では決定打にならず、組み合わせ要因 (2-pass / decomposition) が必要かもしれません。'}</p>`);
+                    }
+                    if (m['rubric-aware'] !== null && m['baseline'] !== null) {
+                        const d3 = (m['rubric-aware'] - m['baseline']).toFixed(2);
+                        parts.push(`<p><strong>baseline → rubric-aware の総改善 (パイプライン全部入り)</strong>: ${d3 > 0 ? '+' : ''}${d3} pt。
+                        「細かい修正 + ARA fix + パイプラインレベル介入」を全部足したときの規模です。</p>`);
+                    }
+                    lessons.innerHTML = parts.join('');
+                }
+
+            } catch (e) {
+                console.error('pipeline-rethink render failed:', e);
+                const lessons = document.getElementById('rethink-lessons-body');
+                if (lessons) lessons.innerHTML = `<p style="color:#888;">データ読み込みエラー: ${e.message}</p>`;
             }
         })();
     </script>

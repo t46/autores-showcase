@@ -1,0 +1,268 @@
+{
+  "papers": [
+    {
+      "id": "stochastic-interpolants",
+      "label": "Stochastic Interpolants",
+      "nodes_expected": 94,
+      "variants": {
+        "baseline": {
+          "status": "completed",
+          "hierarchical_score": 48.59,
+          "simple_average_score": 52.5,
+          "num_nodes": 58,
+          "error": null
+        },
+        "improved": {
+          "status": "completed",
+          "hierarchical_score": 49.53,
+          "simple_average_score": 56.64,
+          "num_nodes": 58,
+          "error": null
+        },
+        "ara-fixes": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        },
+        "rubric-aware": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        }
+      },
+      "best_variant": "improved",
+      "best_score": 49.53
+    },
+    {
+      "id": "semantic-self-consistency",
+      "label": "Semantic Self-Consistency",
+      "nodes_expected": 100,
+      "variants": {
+        "baseline": {
+          "status": "completed",
+          "hierarchical_score": 64.53,
+          "simple_average_score": 64.3,
+          "num_nodes": 50,
+          "error": null
+        },
+        "improved": {
+          "status": "completed",
+          "hierarchical_score": 51.21,
+          "simple_average_score": 64.1,
+          "num_nodes": 50,
+          "error": null
+        },
+        "ara-fixes": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        },
+        "rubric-aware": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        }
+      },
+      "best_variant": "baseline",
+      "best_score": 64.53
+    },
+    {
+      "id": "sequential-neural-score-estimation",
+      "label": "Sequential Neural Score Estimation",
+      "nodes_expected": 123,
+      "variants": {
+        "baseline": {
+          "status": "completed",
+          "hierarchical_score": 53.0,
+          "simple_average_score": 45.3,
+          "num_nodes": 67,
+          "error": null
+        },
+        "improved": {
+          "status": "completed",
+          "hierarchical_score": 80.5,
+          "simple_average_score": 81.94,
+          "num_nodes": 67,
+          "error": null
+        },
+        "ara-fixes": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        },
+        "rubric-aware": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        }
+      },
+      "best_variant": "improved",
+      "best_score": 80.5
+    },
+    {
+      "id": "mechanistic-understanding",
+      "label": "Mechanistic Understanding (DPO toxicity)",
+      "nodes_expected": 128,
+      "variants": {
+        "baseline": {
+          "status": "completed",
+          "hierarchical_score": 23.12,
+          "simple_average_score": 21.81,
+          "num_nodes": 36,
+          "error": null
+        },
+        "improved": {
+          "status": "completed",
+          "hierarchical_score": 34.91,
+          "simple_average_score": 27.64,
+          "num_nodes": 36,
+          "error": null
+        },
+        "ara-fixes": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        },
+        "rubric-aware": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        }
+      },
+      "best_variant": "improved",
+      "best_score": 34.91
+    },
+    {
+      "id": "robust-clip",
+      "label": "Robust CLIP",
+      "nodes_expected": 146,
+      "variants": {
+        "baseline": {
+          "status": "completed",
+          "hierarchical_score": 38.29,
+          "simple_average_score": 42.07,
+          "num_nodes": 70,
+          "error": null
+        },
+        "improved": {
+          "status": "completed",
+          "hierarchical_score": 29.23,
+          "simple_average_score": 34.79,
+          "num_nodes": 70,
+          "error": null
+        },
+        "ara-fixes": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        },
+        "rubric-aware": {
+          "status": "not_run",
+          "hierarchical_score": null,
+          "simple_average_score": null,
+          "num_nodes": null,
+          "error": null
+        }
+      },
+      "best_variant": "baseline",
+      "best_score": 38.29
+    }
+  ],
+  "variants": [
+    "baseline",
+    "improved",
+    "ara-fixes",
+    "rubric-aware"
+  ],
+  "mode_means": {
+    "baseline": 45.51,
+    "improved": 49.08,
+    "ara-fixes": null,
+    "rubric-aware": null
+  },
+  "ought_to": [
+    {
+      "key": "rubric-ground",
+      "title": "rubric-ground",
+      "ja": "再現は要件ツリー (rubric) に直接根拠を持つべき",
+      "explain": "judge が見る要件を agent が事前に知らずにコードを書くのは「答えを見ずにテストを通す」のに近い。Stage 2 prompt に rubric の leaf 要件を直接渡すべき。",
+      "addressed_by": "rubric-aware mode"
+    },
+    {
+      "key": "decompose",
+      "title": "decompose",
+      "ja": "再現はタスク単位に分解されるべき",
+      "explain": "論文が複数実験を含むなら、生成コードも実験ごとに分かれているべき。1 ファイルに圧縮されると scope failure が起きる。",
+      "addressed_by": "ara-fixes / rubric-aware mode (H4 enforcement)"
+    },
+    {
+      "key": "verify",
+      "title": "verify",
+      "ja": "再現はコード生成だけでは終わらず、要件単位で検証されるべき",
+      "explain": "現状 Code-Dev mode は静的 judge のみ。本来は実行 + 数値一致まで検証されるべき (Full mode)。今回 scope 外。",
+      "addressed_by": "(out of scope) Full mode 評価で実走が必要"
+    },
+    {
+      "key": "iterate",
+      "title": "iterate",
+      "ja": "再現は 1 発生成ではなく反復であるべき",
+      "explain": "v1 評価 → 失敗 leaf 抽出 → v2 再生成、というループが本来必要。今回 1-pass のみで実装、2-pass は次の一手として明示。",
+      "addressed_by": "(partial) 2-pass loop は設計済、本実験では 1-pass のみ評価"
+    }
+  ],
+  "ara_pipeline_map": [
+    {
+      "ara_claim": "C-008",
+      "title": "Non-recursive glob in evaluator",
+      "incorporated_in": "ara-fixes / rubric-aware (両 mode に同じ evaluator 修正が効く)",
+      "file": "scripts/evaluate_paperbench.py",
+      "fix": "submission_path.glob → rglob + skip-dir filter"
+    },
+    {
+      "ara_claim": "C-010",
+      "title": "Hardcoded paper_id in evaluation.json",
+      "incorporated_in": "ara-fixes / rubric-aware (両 mode)",
+      "file": "scripts/evaluate_paperbench.py",
+      "fix": "--paper-id 引数化、rubric path から auto-derive"
+    },
+    {
+      "ara_claim": "H4 + C-011",
+      "title": "Stage 2 prompt scope failure",
+      "incorporated_in": "ara-fixes / rubric-aware",
+      "file": "src/autores_reproduce/code_finder.py",
+      "fix": "「simplify 許可」削除、「ALL tasks / EXACT datasets」を mandatory に"
+    },
+    {
+      "ara_claim": "C-007",
+      "title": "Code dir selection bottleneck",
+      "incorporated_in": "(skipped, out of scope)",
+      "file": "—",
+      "fix": "次の一手で対応"
+    }
+  ],
+  "interpretation": {
+    "headline": "「細かい修正」(improved) と「パイプラインレベル介入」(ara-fixes / rubric-aware) のどちらがどれだけ動いたか",
+    "rubric_aware_design": "Stage 2 prompt に rubric.json の leaf 要件 (重み付き checklist) を直接渡し、Claude に「judge が何を見るか」を事前に教えてからコードを書かせる。これは「答えを見せてからテストを書かせる」test-driven な再現アプローチに対応する。",
+    "limit": "今回は 1-pass 評価のみ。2-pass loop (失敗 leaf 抽出 → v2 再生成) は実装済みだがスコープ外で本実験では未起動。",
+    "honest_caveat": "Code-Dev mode は静的 judge であり、実行可能性 / 数値一致は検証していない。Full mode (GPU 必要) は次の一手。"
+  },
+  "_generated_at": "2026-04-30T14:48:04+00:00"
+}

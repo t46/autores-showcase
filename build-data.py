@@ -591,6 +591,131 @@ def build_paperbench_batch() -> dict:
     }
 
 
+def build_pipeline_rethink() -> dict:
+    """4 mode (baseline / improved / ara-fixes / rubric-aware) × 5 論文の hierarchical_score を集計。
+
+    BATCH_ROOT/<paper_id>/<variant>/{summary.json,evaluation.json} を読む。
+    Pipeline-level rethink experiment (2026-04-30): ARA-提案 fix の検証 + rubric-aware Stage 2。
+    """
+    paper_order = [
+        ("stochastic-interpolants", "Stochastic Interpolants", 94),
+        ("semantic-self-consistency", "Semantic Self-Consistency", 100),
+        ("sequential-neural-score-estimation", "Sequential Neural Score Estimation", 123),
+        ("mechanistic-understanding", "Mechanistic Understanding (DPO toxicity)", 128),
+        ("robust-clip", "Robust CLIP", 146),
+    ]
+    variants = ["baseline", "improved", "ara-fixes", "rubric-aware"]
+
+    def _read_score(vdir: Path):
+        slot = {"status": "not_run", "hierarchical_score": None, "simple_average_score": None, "num_nodes": None, "error": None}
+        sp = vdir / "summary.json"
+        ep = vdir / "evaluation.json"
+        if sp.exists():
+            try:
+                s = json.loads(sp.read_text())
+                slot["status"] = s.get("status", "unknown")
+                if s.get("evaluation"):
+                    e = s["evaluation"]
+                    slot["hierarchical_score"] = e.get("hierarchical_score")
+                    slot["simple_average_score"] = e.get("simple_average_score")
+                    slot["num_nodes"] = e.get("num_nodes")
+                    if not e.get("success"):
+                        slot["error"] = e.get("error")
+            except Exception as ex:
+                slot["error"] = f"summary parse error: {ex}"
+        if ep.exists() and slot["hierarchical_score"] is None:
+            try:
+                e = json.loads(ep.read_text())
+                slot["hierarchical_score"] = float(e.get("hierarchical_score", 0))
+                slot["simple_average_score"] = float(e.get("simple_average_score", 0))
+                slot["num_nodes"] = e.get("num_nodes_evaluated") or len(e.get("scored_nodes", []))
+                slot["status"] = "completed"
+            except Exception as ex:
+                slot["error"] = f"evaluation parse error: {ex}"
+        return slot
+
+    papers = []
+    mode_means = {v: [] for v in variants}
+    for pid, label, nodes in paper_order:
+        entry = {"id": pid, "label": label, "nodes_expected": nodes, "variants": {}}
+        scores = {}
+        for v in variants:
+            slot = _read_score(BATCH_ROOT / pid / v)
+            entry["variants"][v] = slot
+            if slot["hierarchical_score"] is not None:
+                mode_means[v].append(slot["hierarchical_score"])
+                scores[v] = slot["hierarchical_score"]
+        # 各論文の最良 mode
+        if scores:
+            best_v = max(scores, key=scores.get)
+            entry["best_variant"] = best_v
+            entry["best_score"] = scores[best_v]
+        # delta
+        if scores.get("baseline") is not None and scores.get("rubric-aware") is not None:
+            entry["delta_rubric_vs_baseline"] = round(scores["rubric-aware"] - scores["baseline"], 2)
+        if scores.get("improved") is not None and scores.get("ara-fixes") is not None:
+            entry["delta_ara_vs_improved"] = round(scores["ara-fixes"] - scores["improved"], 2)
+        if scores.get("improved") is not None and scores.get("rubric-aware") is not None:
+            entry["delta_rubric_vs_improved"] = round(scores["rubric-aware"] - scores["improved"], 2)
+        papers.append(entry)
+
+    means = {v: (round(sum(xs) / len(xs), 2) if xs else None) for v, xs in mode_means.items()}
+
+    # 「再現に求められる 4 つの ought-to」
+    ought_to = [
+        {
+            "key": "rubric-ground",
+            "title": "rubric-ground",
+            "ja": "再現は要件ツリー (rubric) に直接根拠を持つべき",
+            "explain": "judge が見る要件を agent が事前に知らずにコードを書くのは「答えを見ずにテストを通す」のに近い。Stage 2 prompt に rubric の leaf 要件を直接渡すべき。",
+            "addressed_by": "rubric-aware mode",
+        },
+        {
+            "key": "decompose",
+            "title": "decompose",
+            "ja": "再現はタスク単位に分解されるべき",
+            "explain": "論文が複数実験を含むなら、生成コードも実験ごとに分かれているべき。1 ファイルに圧縮されると scope failure が起きる。",
+            "addressed_by": "ara-fixes / rubric-aware mode (H4 enforcement)",
+        },
+        {
+            "key": "verify",
+            "title": "verify",
+            "ja": "再現はコード生成だけでは終わらず、要件単位で検証されるべき",
+            "explain": "現状 Code-Dev mode は静的 judge のみ。本来は実行 + 数値一致まで検証されるべき (Full mode)。今回 scope 外。",
+            "addressed_by": "(out of scope) Full mode 評価で実走が必要",
+        },
+        {
+            "key": "iterate",
+            "title": "iterate",
+            "ja": "再現は 1 発生成ではなく反復であるべき",
+            "explain": "v1 評価 → 失敗 leaf 抽出 → v2 再生成、というループが本来必要。今回 1-pass のみで実装、2-pass は次の一手として明示。",
+            "addressed_by": "(partial) 2-pass loop は設計済、本実験では 1-pass のみ評価",
+        },
+    ]
+
+    # ARA → pipeline mapping (どの ARA-fix がどの mode に組み込まれたか)
+    ara_pipeline_map = [
+        {"ara_claim": "C-008", "title": "Non-recursive glob in evaluator", "incorporated_in": "ara-fixes / rubric-aware (両 mode に同じ evaluator 修正が効く)", "file": "scripts/evaluate_paperbench.py", "fix": "submission_path.glob → rglob + skip-dir filter"},
+        {"ara_claim": "C-010", "title": "Hardcoded paper_id in evaluation.json", "incorporated_in": "ara-fixes / rubric-aware (両 mode)", "file": "scripts/evaluate_paperbench.py", "fix": "--paper-id 引数化、rubric path から auto-derive"},
+        {"ara_claim": "H4 + C-011", "title": "Stage 2 prompt scope failure", "incorporated_in": "ara-fixes / rubric-aware", "file": "src/autores_reproduce/code_finder.py", "fix": "「simplify 許可」削除、「ALL tasks / EXACT datasets」を mandatory に"},
+        {"ara_claim": "C-007", "title": "Code dir selection bottleneck", "incorporated_in": "(skipped, out of scope)", "file": "—", "fix": "次の一手で対応"},
+    ]
+
+    return {
+        "papers": papers,
+        "variants": variants,
+        "mode_means": means,
+        "ought_to": ought_to,
+        "ara_pipeline_map": ara_pipeline_map,
+        "interpretation": {
+            "headline": "「細かい修正」(improved) と「パイプラインレベル介入」(ara-fixes / rubric-aware) のどちらがどれだけ動いたか",
+            "rubric_aware_design": "Stage 2 prompt に rubric.json の leaf 要件 (重み付き checklist) を直接渡し、Claude に「judge が何を見るか」を事前に教えてからコードを書かせる。これは「答えを見せてからテストを書かせる」test-driven な再現アプローチに対応する。",
+            "limit": "今回は 1-pass 評価のみ。2-pass loop (失敗 leaf 抽出 → v2 再生成) は実装済みだがスコープ外で本実験では未起動。",
+            "honest_caveat": "Code-Dev mode は静的 judge であり、実行可能性 / 数値一致は検証していない。Full mode (GPU 必要) は次の一手。",
+        },
+    }
+
+
 def build_agent_comparison() -> dict:
     """3 主体並列実験 (人間+Claude / ARA 15 skills / ARA + research-prime 123 skills) の比較データを生成。"""
     ARA_RUNS = Path.home() / "unktok/dev/autonomous-research-agent/runs"
@@ -750,6 +875,7 @@ def main():
     ov = build_overview(pb, si, rp, ls)
     pbb = build_paperbench_batch()
     ac = build_agent_comparison()
+    pr = build_pipeline_rethink()
 
     write_json("paperbench.json", pb)
     write_json("self-improving.json", si)
@@ -758,6 +884,7 @@ def main():
     write_json("overview.json", ov)
     write_json("paperbench-batch.json", pbb)
     write_json("agent-comparison.json", ac)
+    write_json("pipeline-rethink.json", pr)
     print(f"[build-data] done @ {NOW}")
 
 
