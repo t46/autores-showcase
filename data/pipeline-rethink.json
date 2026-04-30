@@ -20,22 +20,25 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "no_generated_code",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 40.6,
+          "simple_average_score": 39.66,
+          "num_nodes": 58,
           "error": null
         },
         "rubric-aware": {
-          "status": "no_generated_code",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 99.21,
+          "simple_average_score": 98.02,
+          "num_nodes": 58,
           "error": null
         }
       },
-      "best_variant": "improved",
-      "best_score": 49.53
+      "best_variant": "rubric-aware",
+      "best_score": 99.21,
+      "delta_rubric_vs_baseline": 50.62,
+      "delta_ara_vs_improved": -8.93,
+      "delta_rubric_vs_improved": 49.68
     },
     {
       "id": "semantic-self-consistency",
@@ -57,22 +60,25 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "no_generated_code",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 88.73,
+          "simple_average_score": 77.4,
+          "num_nodes": 50,
           "error": null
         },
         "rubric-aware": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 97.57,
+          "simple_average_score": 99.3,
+          "num_nodes": 50,
           "error": null
         }
       },
-      "best_variant": "baseline",
-      "best_score": 64.53
+      "best_variant": "rubric-aware",
+      "best_score": 97.57,
+      "delta_rubric_vs_baseline": 33.04,
+      "delta_ara_vs_improved": 37.52,
+      "delta_rubric_vs_improved": 46.36
     },
     {
       "id": "sequential-neural-score-estimation",
@@ -94,22 +100,25 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 61.05,
+          "simple_average_score": 54.78,
+          "num_nodes": 67,
           "error": null
         },
         "rubric-aware": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 77.14,
+          "simple_average_score": 79.55,
+          "num_nodes": 67,
           "error": null
         }
       },
       "best_variant": "improved",
-      "best_score": 80.5
+      "best_score": 80.5,
+      "delta_rubric_vs_baseline": 24.14,
+      "delta_ara_vs_improved": -19.45,
+      "delta_rubric_vs_improved": -3.36
     },
     {
       "id": "mechanistic-understanding",
@@ -131,22 +140,25 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 39.28,
+          "simple_average_score": 38.61,
+          "num_nodes": 36,
           "error": null
         },
         "rubric-aware": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 53.06,
+          "simple_average_score": 44.31,
+          "num_nodes": 36,
           "error": null
         }
       },
-      "best_variant": "improved",
-      "best_score": 34.91
+      "best_variant": "rubric-aware",
+      "best_score": 53.06,
+      "delta_rubric_vs_baseline": 29.94,
+      "delta_ara_vs_improved": 4.37,
+      "delta_rubric_vs_improved": 18.15
     },
     {
       "id": "robust-clip",
@@ -168,22 +180,25 @@
           "error": null
         },
         "ara-fixes": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 38.95,
+          "simple_average_score": 44.36,
+          "num_nodes": 70,
           "error": null
         },
         "rubric-aware": {
-          "status": "not_run",
-          "hierarchical_score": null,
-          "simple_average_score": null,
-          "num_nodes": null,
+          "status": "completed",
+          "hierarchical_score": 48.79,
+          "simple_average_score": 56.36,
+          "num_nodes": 70,
           "error": null
         }
       },
-      "best_variant": "baseline",
-      "best_score": 38.29
+      "best_variant": "rubric-aware",
+      "best_score": 48.79,
+      "delta_rubric_vs_baseline": 10.5,
+      "delta_ara_vs_improved": 9.72,
+      "delta_rubric_vs_improved": 19.56
     }
   ],
   "variants": [
@@ -195,8 +210,8 @@
   "mode_means": {
     "baseline": 45.51,
     "improved": 49.08,
-    "ara-fixes": null,
-    "rubric-aware": null
+    "ara-fixes": 53.72,
+    "rubric-aware": 75.15
   },
   "ought_to": [
     {
@@ -264,5 +279,5 @@
     "limit": "今回は 1-pass 評価のみ。2-pass loop (失敗 leaf 抽出 → v2 再生成) は実装済みだがスコープ外で本実験では未起動。",
     "honest_caveat": "Code-Dev mode は静的 judge であり、実行可能性 / 数値一致は検証していない。Full mode (GPU 必要) は次の一手。"
   },
-  "_generated_at": "2026-04-30T15:04:12+00:00"
+  "_generated_at": "2026-04-30T16:31:03+00:00"
 }

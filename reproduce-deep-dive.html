@@ -997,20 +997,47 @@ graph LR
 
                     if (m['ara-fixes'] !== null && m['improved'] !== null) {
                         const d1 = (m['ara-fixes'] - m['improved']).toFixed(2);
-                        parts.push(`<p><strong>ARA-提案 fix の効果 (improved → ara-fixes)</strong>: ${d1 > 0 ? '+' : ''}${d1} pt の mean shift。
-                        ARA-a が指摘した glob 非再帰バグ (C-008) と Stage 2 prompt scope failure (H4 + C-011) を実プロダクトに取り込んだ結果です。</p>`);
+                        // per-paper variance for ara-fixes vs improved
+                        const perPaperDelta = d.papers.map(p => {
+                            const ai = p.variants['ara-fixes']?.hierarchical_score;
+                            const im = p.variants['improved']?.hierarchical_score;
+                            return (ai !== null && im !== null) ? { id: p.id, delta: ai - im } : null;
+                        }).filter(x => x !== null);
+                        const sortedDeltas = perPaperDelta.slice().sort((a, b) => b.delta - a.delta);
+                        const top = sortedDeltas[0], bottom = sortedDeltas[sortedDeltas.length - 1];
+                        parts.push(`<p><strong>ARA-提案 fix の効果 (improved → ara-fixes)</strong>: 5 論文 mean で ${d1 > 0 ? '+' : ''}${d1} pt のシフト。<br>
+                        <strong>ただし論文ごとに効きかたが drastically 違う</strong> — 最大は <code>${top.id}</code> で <strong>${top.delta > 0 ? '+' : ''}${top.delta.toFixed(2)} pt</strong>、最小は <code>${bottom.id}</code> で <strong>${bottom.delta > 0 ? '+' : ''}${bottom.delta.toFixed(2)} pt</strong>。
+                        ARA-a の H4 enforcement (「ALL tasks / EXACT datasets / no simplify」) は <strong>論文に複数実験が含まれる場合、各実験の完成度が薄まって regress する</strong> ことが分かりました。
+                        ARA-a の Evaluator が自身で flag していた「+24.3pp は subset 7 ノードのみ」という caveat が、全 rubric ノードでは反対方向に効くケースもある、という発見です。 「agent の提案を盲信せず実プロダクトで実測する」ことの価値を定量的に確認しました。</p>`);
                     }
                     if (m['rubric-aware'] !== null && m['ara-fixes'] !== null) {
                         const d2 = (m['rubric-aware'] - m['ara-fixes']).toFixed(2);
-                        parts.push(`<p><strong>Rubric-aware Stage 2 の追加効果 (ara-fixes → rubric-aware)</strong>: ${d2 > 0 ? '+' : ''}${d2} pt。
-                        rubric.json の leaf 要件 (重み付き checklist) を Stage 2 prompt に直接注入することで、Claude が
-                        「judge が何を見るか」を事前に知ってコードを書けるようにしました。 ${d2 > 0 ? '効果が出ています。' : '今回の measurement では rubric 注入が単独では決定打にならず、組み合わせ要因 (2-pass / decomposition) が必要かもしれません。'}</p>`);
+                        const perPaperDelta = d.papers.map(p => {
+                            const ra = p.variants['rubric-aware']?.hierarchical_score;
+                            const ai = p.variants['ara-fixes']?.hierarchical_score;
+                            return (ra !== null && ai !== null) ? { id: p.id, delta: ra - ai } : null;
+                        }).filter(x => x !== null);
+                        const sortedDeltas = perPaperDelta.slice().sort((a, b) => b.delta - a.delta);
+                        const top = sortedDeltas[0], bottom = sortedDeltas[sortedDeltas.length - 1];
+                        parts.push(`<p><strong>Rubric-aware Stage 2 の追加効果 (ara-fixes → rubric-aware)</strong>: mean で ${d2 > 0 ? '+' : ''}${d2} pt。
+                        ただし <strong>§6.5 で説明したとおり、これは spec-disclosure による上振れを含む</strong>ため benchmark としては不公正。 純粋効果ではなく上限値推定として読んでください。<br>
+                        per-paper では最大 <code>${top.id}</code> で <strong>${top.delta > 0 ? '+' : ''}${top.delta.toFixed(2)} pt</strong> (rubric を見せる効果が最も顕著)、最小 <code>${bottom.id}</code> で <strong>${bottom.delta > 0 ? '+' : ''}${bottom.delta.toFixed(2)} pt</strong> (見せても上がらない / 下がる)。
+                        論文の構造によって rubric-disclosure の effective range は +${Math.max(0, bottom.delta).toFixed(0)} 〜 +${top.delta.toFixed(0)} pt と divergent でした。</p>`);
                     }
                     if (m['rubric-aware'] !== null && m['baseline'] !== null) {
                         const d3 = (m['rubric-aware'] - m['baseline']).toFixed(2);
-                        parts.push(`<p><strong>baseline → rubric-aware の総改善 (パイプライン全部入り)</strong>: ${d3 > 0 ? '+' : ''}${d3} pt。
-                        「細かい修正 + ARA fix + パイプラインレベル介入」を全部足したときの規模です。</p>`);
+                        parts.push(`<p><strong>baseline → rubric-aware の総改善 (パイプライン全部入り)</strong>: mean で ${d3 > 0 ? '+' : ''}${d3} pt。
+                        「細かい修正 + ARA fix + パイプラインレベル介入」を全部足したときの規模です。 上述の caveat 通り絶対値は控え目に解釈すべきですが、「複数論文で一貫して測れる体系」と「介入レベルごとに分解された結果」が 5 論文揃って取れたこと自体が今回の主な成果です。</p>`);
                     }
+
+                    // Best-mode count summary
+                    const bestCount = {};
+                    d.papers.forEach(p => { if (p.best_variant) bestCount[p.best_variant] = (bestCount[p.best_variant] || 0) + 1; });
+                    const bestParts = Object.entries(bestCount).map(([v, n]) => `${v}: ${n}/${d.papers.length}`).join(', ');
+                    parts.push(`<p style="font-size:13px;color:#666;border-left:3px solid #c7d8ff;padding-left:12px;margin-top:14px;">
+                        <strong>best-mode 内訳</strong>: ${bestParts}。<br>
+                        rubric-aware が多くの論文で best になるのは spec-disclosure の影響が大きいため。 純粋な「rubric-blind の中での best」を見るなら baseline / improved / ara-fixes の 3 mode に絞った時の per-paper 結果を上の chart で確認してください。</p>`);
+
                     lessons.innerHTML = parts.join('');
                 }
 
