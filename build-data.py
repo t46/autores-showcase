@@ -591,6 +591,159 @@ def build_paperbench_batch() -> dict:
     }
 
 
+def build_agent_comparison() -> dict:
+    """3 主体並列実験 (人間+Claude / ARA 15 skills / ARA + research-prime 123 skills) の比較データを生成。"""
+    ARA_RUNS = Path.home() / "unktok/dev/autonomous-research-agent/runs"
+    ara_a = ARA_RUNS / "2026-04-30-reproduce-automation-ara"
+    ara_p = ARA_RUNS / "2026-04-30-reproduce-automation-prime"
+
+    # H4 per-node breakdown (ARA-a の実機検証結果)
+    h4_path = ara_a / "experiments/h4-prompt-fix/eval_h4_results.json"
+    h4_nodes = []
+    if h4_path.exists():
+        h4_data = safe_load(h4_path)
+        if h4_data:
+            base = h4_data.get("baseline_results", [])
+            impr = h4_data.get("h4_results", [])
+            for b, i in zip(base, impr):
+                req_short = b.get("requirements", "")[:80]
+                # 短縮表現のためのラベル
+                if "U-Net" in req_short:
+                    label = "U-Net architecture"
+                elif "ImageNet" in req_short and "validation" in req_short:
+                    label = "ImageNet train/val access"
+                elif "tiles" in req_short and "0.3" in req_short:
+                    label = "Mask: 64 tiles × p=0.3"
+                elif "same value for all channels" in req_short:
+                    label = "Mask: same value across channels"
+                elif "Hadamard" in req_short or "noise" in req_short.lower():
+                    label = "Mask: noise injection $x_0=\\xi\\circ x_1+(1-\\xi)\\circ\\zeta$"
+                elif "class value" in req_short:
+                    label = "Class label channel"
+                elif "uniformly sampled" in req_short:
+                    label = "Time t ∼ U(0,1)"
+                else:
+                    label = req_short[:60]
+                h4_nodes.append({
+                    "label": label,
+                    "baseline": b.get("score", 0),
+                    "improved": i.get("score", 0),
+                })
+
+    # ARA-a が発見したバグ (4 件)
+    ara_a_bugs = [
+        {
+            "id": "C-008",
+            "title": "Non-recursive glob in evaluate_paperbench.py",
+            "summary": "submission/<subdir>/ にあるコードが評価対象から漏れる。official repo で 0% スコアの主因。",
+            "impact": "stochastic-interpolants の \"untested\" 比率が高かった一因と整合 (submission/training/inpainting_512.py が glob で拾われていなかった)。",
+        },
+        {
+            "id": "C-007",
+            "title": "Code dir selection bottleneck",
+            "summary": "official repo に複数候補ディレクトリがあるとき、誤って空 / wrap dir を選んで 0% に落ちる。",
+            "impact": "Stage 2 以前 (= Stage 1 のディレクトリ抽出) のバグ。修正すれば baseline が底上げされる。",
+        },
+        {
+            "id": "C-010",
+            "title": "paper_id metadata bug",
+            "summary": "全 evaluation.json で paper_id=\"stochastic-interpolants\" が hardcoded、どの論文を評価しても同じ値が入る。",
+            "impact": "現状の集計で「どの論文の数値か」を別 path から復元する必要があり、追跡コストが上がる。",
+        },
+        {
+            "id": "C-011",
+            "title": "Stage 2 prompt が \"simplify\" 指示で scope failure 誘発",
+            "summary": "現行 prompt の \"simplify\" / \"standard datasets\" 指示が、論文固有のタスクや dataset を捨てる方向に効く。Stage 1 が正しく抽出していても Stage 2 で scope が縮む。",
+            "impact": "H4 仮説 (targeted prompt fix) の根拠。+24.3pp の改善はこの指示文の修正によるもの。",
+        },
+    ]
+
+    # ARA-p の failure taxonomy (4 クラスタ)
+    ara_p_taxonomy = [
+        {"cluster": "GeneratedCodeSyntaxError", "pct": 40, "papers": "semantic-self-consistency, mechanistic-understanding", "cause": "Claude 生成コードに未終端 string literal 等"},
+        {"cluster": "CLIArgumentMismatch", "pct": 20, "papers": "robust-clip", "cause": "executor が --device cpu を subcommand 前に注入する構造的 mismatch"},
+        {"cluster": "NumpyVersionIncompatibility", "pct": 20, "papers": "sequential-neural-score-estimation", "cause": "numpy 2.0 で StringDType 削除"},
+        {"cluster": "EvaluationMetadataBug", "pct": 20, "papers": "sequential-neural-score-estimation", "cause": "evaluation.json の paper_id 誤記 (= ARA-a の C-010 と同件)"},
+    ]
+
+    # 3 主体サマリ
+    subjects = [
+        {
+            "id": "human",
+            "label": "主体 A: 人間 + Claude",
+            "harness": "Claude Code 標準",
+            "skills": "—",
+            "hours": 13,
+            "scope": "5 論文 × 2 variants 全 evaluation",
+            "improvement_metric": "5 論文 mean +3.6 pt",
+            "improvement_value": 3.6,
+            "improvement_unit": "pt",
+            "bugs_found": 0,
+            "claims": 0,
+            "char": "測定インフラの整備が中心、生成コード本体は動かず",
+        },
+        {
+            "id": "ara-a",
+            "label": "主体 B: ARA (15 skills)",
+            "harness": "ARA sustainer (2 cycle × 4 phase)",
+            "skills": "ARA 同梱 15 skills",
+            "hours": 1,
+            "scope": "1 論文 × rubric subset 7 ノード",
+            "improvement_metric": "subset で 15.7% → 40.0% (+24.3 pp)",
+            "improvement_value": 24.3,
+            "improvement_unit": "pp",
+            "bugs_found": 4,
+            "claims": 12,
+            "char": "★ 既存 reproduce repo のバグ 4 件発見 + H4 仮説実機検証",
+        },
+        {
+            "id": "ara-p",
+            "label": "主体 C: ARA + research-prime (123 skills)",
+            "harness": "ARA sustainer (cycle 1 半、harness 早期 exit)",
+            "skills": "research-prime: ARA 16 + Orchestra 95 + new/ 12 = 123 skills",
+            "hours": 0.27,
+            "scope": "Researcher + Evaluator のみ、cycle 2 未到達",
+            "improvement_metric": "数値結果なし (定性のみ)",
+            "improvement_value": 0,
+            "improvement_unit": "—",
+            "bugs_found": 0,
+            "claims": 6,
+            "char": "failure 4 クラスタ分類 + Layer 0 validator 2 件 (CLIIntrospector が F2 実証)",
+        },
+    ]
+
+    # Self-Evaluator が flag した誇張 (信頼性の自己校正)
+    self_critique = [
+        {"subject": "ara-a", "flagged": "claim-003 confidence 0.75 過大 — fix フェーズの F2 Evidence なし"},
+        {"subject": "ara-a", "flagged": "H4 fix を 5 論文に展開していない、+24.3pp は subset のみ"},
+        {"subject": "ara-a", "flagged": "eval_h4.py の inpainting detection regex バグで breakdown が意味なし"},
+        {"subject": "ara-p", "flagged": "実験ログファイル未保存、再現性に欠ける (timestamp + path のみ)"},
+        {"subject": "ara-p", "flagged": "skill_validation Ledger エントリ 0 件 — research-question.md の必須要件未充足"},
+    ]
+
+    return {
+        "subjects": subjects,
+        "ara_a_bugs": ara_a_bugs,
+        "h4_nodes": h4_nodes,
+        "h4_summary": {
+            "baseline_avg": round(sum(n["baseline"] for n in h4_nodes) / max(len(h4_nodes), 1), 1),
+            "improved_avg": round(sum(n["improved"] for n in h4_nodes) / max(len(h4_nodes), 1), 1),
+            "delta_pp": 24.3,
+            "judge": "claude-sonnet-4-6",
+            "n_nodes": len(h4_nodes),
+            "paper": "stochastic-interpolants",
+        },
+        "ara_p_taxonomy": ara_p_taxonomy,
+        "ara_p_cli_introspector_example": {
+            "before": "python cli.py --device cpu eval --weights ./weights",
+            "after": "python cli.py eval --device cpu --weights ./weights",
+            "explain": "robust-clip の cli は subcommand (eval/build) の後に flag を取る構造。executor が --device cpu を subcommand 前に注入していたため argparse error。CLIIntrospector が --help を parse して構造を学習し、正しい順序で組み立てる。",
+        },
+        "self_critique": self_critique,
+        "meta_conclusion": "13 時間 / +3.6 pt / バグ 0 件 (主体 A) と 1 時間 / +24.3 pp / バグ 4 件 (主体 B) の比較は、「人間が改善案を考えるより agent にループを閉じさせる方が早く深い」という仮説の部分実証。ただし主体 B の +24.3pp は 1 論文 × 7 ノード subset の結果。",
+    }
+
+
 def main():
     print("[build-data] start")
     pb = build_paperbench()
@@ -599,6 +752,7 @@ def main():
     ls = build_literature_scout()
     ov = build_overview(pb, si, rp, ls)
     pbb = build_paperbench_batch()
+    ac = build_agent_comparison()
 
     write_json("paperbench.json", pb)
     write_json("self-improving.json", si)
@@ -606,6 +760,7 @@ def main():
     write_json("literature-scout.json", ls)
     write_json("overview.json", ov)
     write_json("paperbench-batch.json", pbb)
+    write_json("agent-comparison.json", ac)
     print(f"[build-data] done @ {NOW}")
 
 

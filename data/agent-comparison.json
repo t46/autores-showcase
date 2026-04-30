@@ -1,0 +1,172 @@
+{
+  "subjects": [
+    {
+      "id": "human",
+      "label": "主体 A: 人間 + Claude",
+      "harness": "Claude Code 標準",
+      "skills": "—",
+      "hours": 13,
+      "scope": "5 論文 × 2 variants 全 evaluation",
+      "improvement_metric": "5 論文 mean +3.6 pt",
+      "improvement_value": 3.6,
+      "improvement_unit": "pt",
+      "bugs_found": 0,
+      "claims": 0,
+      "char": "測定インフラの整備が中心、生成コード本体は動かず"
+    },
+    {
+      "id": "ara-a",
+      "label": "主体 B: ARA (15 skills)",
+      "harness": "ARA sustainer (2 cycle × 4 phase)",
+      "skills": "ARA 同梱 15 skills",
+      "hours": 1,
+      "scope": "1 論文 × rubric subset 7 ノード",
+      "improvement_metric": "subset で 15.7% → 40.0% (+24.3 pp)",
+      "improvement_value": 24.3,
+      "improvement_unit": "pp",
+      "bugs_found": 4,
+      "claims": 12,
+      "char": "★ 既存 reproduce repo のバグ 4 件発見 + H4 仮説実機検証"
+    },
+    {
+      "id": "ara-p",
+      "label": "主体 C: ARA + research-prime (123 skills)",
+      "harness": "ARA sustainer (cycle 1 半、harness 早期 exit)",
+      "skills": "research-prime: ARA 16 + Orchestra 95 + new/ 12 = 123 skills",
+      "hours": 0.27,
+      "scope": "Researcher + Evaluator のみ、cycle 2 未到達",
+      "improvement_metric": "数値結果なし (定性のみ)",
+      "improvement_value": 0,
+      "improvement_unit": "—",
+      "bugs_found": 0,
+      "claims": 6,
+      "char": "failure 4 クラスタ分類 + Layer 0 validator 2 件 (CLIIntrospector が F2 実証)"
+    }
+  ],
+  "ara_a_bugs": [
+    {
+      "id": "C-008",
+      "title": "Non-recursive glob in evaluate_paperbench.py",
+      "summary": "submission/<subdir>/ にあるコードが評価対象から漏れる。official repo で 0% スコアの主因。",
+      "impact": "stochastic-interpolants の \"untested\" 比率が高かった一因と整合 (submission/training/inpainting_512.py が glob で拾われていなかった)。"
+    },
+    {
+      "id": "C-007",
+      "title": "Code dir selection bottleneck",
+      "summary": "official repo に複数候補ディレクトリがあるとき、誤って空 / wrap dir を選んで 0% に落ちる。",
+      "impact": "Stage 2 以前 (= Stage 1 のディレクトリ抽出) のバグ。修正すれば baseline が底上げされる。"
+    },
+    {
+      "id": "C-010",
+      "title": "paper_id metadata bug",
+      "summary": "全 evaluation.json で paper_id=\"stochastic-interpolants\" が hardcoded、どの論文を評価しても同じ値が入る。",
+      "impact": "現状の集計で「どの論文の数値か」を別 path から復元する必要があり、追跡コストが上がる。"
+    },
+    {
+      "id": "C-011",
+      "title": "Stage 2 prompt が \"simplify\" 指示で scope failure 誘発",
+      "summary": "現行 prompt の \"simplify\" / \"standard datasets\" 指示が、論文固有のタスクや dataset を捨てる方向に効く。Stage 1 が正しく抽出していても Stage 2 で scope が縮む。",
+      "impact": "H4 仮説 (targeted prompt fix) の根拠。+24.3pp の改善はこの指示文の修正によるもの。"
+    }
+  ],
+  "h4_nodes": [
+    {
+      "label": "U-Net architecture",
+      "baseline": 10,
+      "improved": 15
+    },
+    {
+      "label": "ImageNet train/val access",
+      "baseline": 0,
+      "improved": 90
+    },
+    {
+      "label": "During training the Dependent Coupling model for in-painting",
+      "baseline": 0,
+      "improved": 0
+    },
+    {
+      "label": "During training the Dependent Coupling model for in-painting",
+      "baseline": 0,
+      "improved": 75
+    },
+    {
+      "label": "During training the Dependent Coupling model for in-painting",
+      "baseline": 0,
+      "improved": 25
+    },
+    {
+      "label": "During training the Dependent Coupling model for in-painting",
+      "baseline": 0,
+      "improved": 0
+    },
+    {
+      "label": "During training the Dependent Coupling model for in-painting",
+      "baseline": 100,
+      "improved": 75
+    }
+  ],
+  "h4_summary": {
+    "baseline_avg": 15.7,
+    "improved_avg": 40.0,
+    "delta_pp": 24.3,
+    "judge": "claude-sonnet-4-6",
+    "n_nodes": 7,
+    "paper": "stochastic-interpolants"
+  },
+  "ara_p_taxonomy": [
+    {
+      "cluster": "GeneratedCodeSyntaxError",
+      "pct": 40,
+      "papers": "semantic-self-consistency, mechanistic-understanding",
+      "cause": "Claude 生成コードに未終端 string literal 等"
+    },
+    {
+      "cluster": "CLIArgumentMismatch",
+      "pct": 20,
+      "papers": "robust-clip",
+      "cause": "executor が --device cpu を subcommand 前に注入する構造的 mismatch"
+    },
+    {
+      "cluster": "NumpyVersionIncompatibility",
+      "pct": 20,
+      "papers": "sequential-neural-score-estimation",
+      "cause": "numpy 2.0 で StringDType 削除"
+    },
+    {
+      "cluster": "EvaluationMetadataBug",
+      "pct": 20,
+      "papers": "sequential-neural-score-estimation",
+      "cause": "evaluation.json の paper_id 誤記 (= ARA-a の C-010 と同件)"
+    }
+  ],
+  "ara_p_cli_introspector_example": {
+    "before": "python cli.py --device cpu eval --weights ./weights",
+    "after": "python cli.py eval --device cpu --weights ./weights",
+    "explain": "robust-clip の cli は subcommand (eval/build) の後に flag を取る構造。executor が --device cpu を subcommand 前に注入していたため argparse error。CLIIntrospector が --help を parse して構造を学習し、正しい順序で組み立てる。"
+  },
+  "self_critique": [
+    {
+      "subject": "ara-a",
+      "flagged": "claim-003 confidence 0.75 過大 — fix フェーズの F2 Evidence なし"
+    },
+    {
+      "subject": "ara-a",
+      "flagged": "H4 fix を 5 論文に展開していない、+24.3pp は subset のみ"
+    },
+    {
+      "subject": "ara-a",
+      "flagged": "eval_h4.py の inpainting detection regex バグで breakdown が意味なし"
+    },
+    {
+      "subject": "ara-p",
+      "flagged": "実験ログファイル未保存、再現性に欠ける (timestamp + path のみ)"
+    },
+    {
+      "subject": "ara-p",
+      "flagged": "skill_validation Ledger エントリ 0 件 — research-question.md の必須要件未充足"
+    }
+  ],
+  "meta_conclusion": "13 時間 / +3.6 pt / バグ 0 件 (主体 A) と 1 時間 / +24.3 pp / バグ 4 件 (主体 B) の比較は、「人間が改善案を考えるより agent にループを閉じさせる方が早く深い」という仮説の部分実証。ただし主体 B の +24.3pp は 1 論文 × 7 ノード subset の結果。",
+  "_generated_at": "2026-04-30T14:09:24+00:00"
+}

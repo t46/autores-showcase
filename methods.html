@@ -496,6 +496,101 @@ flowchart TD
             </div>
         </section>
 
+        <!-- ===================== §6 並行実験のセットアップ ===================== -->
+        <section class="section" id="meta-setup">
+            <h2><span class="num">§6</span> 並行実験のセットアップ — agent に同じ問題を解かせる</h2>
+
+            <div class="intro-box">
+                <h3>何をするセクションか</h3>
+                <p>§3 Reproduce Pipeline の続編 (<a href="./reproduce-deep-dive.html">Deep Dive</a>) で、
+                「Reproduce Pipeline を強くする」というタスクを <strong>人間 + Claude の手作業</strong> と
+                <strong>自律研究エージェント (ARA)</strong> 2 系列に並列で投げ、結果を比較しました。
+                このセクションでは、その実験をどう setup したかを説明します。
+                方法論として「agent に研究タスクを投げて夜間で回す」フローを再利用可能にするのが目的です。</p>
+            </div>
+
+            <h3>登場する 3 つのリポジトリ</h3>
+            <table class="kv-table">
+                <tbody>
+                    <tr>
+                        <th>autonomous-research-agent (ARA)</th>
+                        <td>自律研究エージェント本体。<code>scripts/sustainer.sh</code> が Researcher → Evaluator → Reviewer → Improver の 4 phase を 1 cycle として回す。
+                        charter (<code>research-charter.md</code>) で「AI 研究自動化の自動化」を明示しているので、メタな自己改善タスクに向く。</td>
+                    </tr>
+                    <tr>
+                        <th>research-prime</th>
+                        <td>ARA + AI-Research-SKILLs (Orchestra) を融合したスキル集約リポ。Phase α で autonomous runner はまだ無いが、
+                        <code>skills/</code> 以下に <strong>123 件</strong>の SKILL.md を持つ (ARA 16 + Orchestra 95 + 新規 12)。
+                        本実験では「skills だけ拝借して ARA harness で回す」という使い方をした。</td>
+                    </tr>
+                    <tr>
+                        <th>autores/reproduce</th>
+                        <td>本日のタスク対象。§3 で説明した 5 stage の Reproduce Pipeline。
+                        ARA からは <strong>読み取りのみ</strong>、改善案は ARA project 内 <code>experiments/</code> に閉じる。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>セットアップフロー (Mermaid)</h3>
+            <div class="flow-card">
+                <div class="mermaid">
+graph TB
+    Q["Research Question:<br/>PaperBench Code-Dev で<br/>hierarchical_score を上げる"]
+    Q --> SCAFFOLD["scripts/new-research.sh<br/>(ARA 標準の scaffold)"]
+    SCAFFOLD --> A_DIR["runs/2026-04-30-reproduce-automation-ara/<br/>.claude/skills = 15 (ARA 同梱)"]
+    SCAFFOLD --> P_DIR["runs/2026-04-30-reproduce-automation-prime/<br/>.claude/skills = ?"]
+    P_DIR -->|"rsync research-prime/skills/"| P_DIR2[".claude/skills = 123<br/>(ARA 16 + Orchestra 95 + new 12)"]
+    A_DIR --> A_RUN["sustainer.sh --loop 2<br/>tmux ara-reproduce-a"]
+    P_DIR2 --> P_WRAP["sustainer-no-infra-update.sh<br/>(skills を rsync --delete で<br/>wipe しないため sed wrapper)"]
+    P_WRAP --> P_RUN["sustainer.sh --loop 2<br/>tmux ara-reproduce-p"]
+    A_RUN --> A_OUT["claims, ledger,<br/>experiments, reports"]
+    P_RUN --> P_OUT["claims, ledger,<br/>experiments, reports"]
+    classDef question fill:#fff8e1,stroke:#f9a825,stroke-width:2px;
+    classDef scaffold fill:#f0f4ff,stroke:#0066cc;
+    classDef run fill:#f0fff4,stroke:#0066cc;
+    classDef out fill:#e3f2fd,stroke:#1976d2;
+    class Q question
+    class SCAFFOLD,A_DIR,P_DIR,P_DIR2,P_WRAP scaffold
+    class A_RUN,P_RUN run
+    class A_OUT,P_OUT out
+                </div>
+                <div class="flow-caption">3 主体並列実験のセットアップ。ARA scaffold (左下) と research-prime skill 注入 (右下) で skill の数だけが違う 2 つの ARA project を作り、tmux で並列実行する。</div>
+            </div>
+
+            <h3>「ペッコ (project copy isolation)」 — 元 repo を汚さない</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                ARA の <code>scripts/new-research.sh</code> は、研究テーマごとに
+                <code>runs/&lt;name&gt;/</code> という独立 dir を作り、<code>.claude/</code> (skills, hooks, agents, settings)、
+                <code>research-workspace/</code>、<code>pyproject.toml</code>、独立 git を完全コピーします。元の ARA repo は変更されません。
+                これによって複数の研究プロジェクトを並列で動かしても、互いの skill 検証や ledger を汚染し合わない仕組みになっています。
+            </p>
+
+            <h3>4 phase ループ (sustainer)</h3>
+            <ol class="flow-steps">
+                <li><strong>Researcher</strong> — research-question.md と前 session の current-focus.md を読み、
+                文献調査・仮説生成・実装・検証の 1 ターンを回す。Belief Store に Claim を起票し、Ledger に試行記録を残す。</li>
+                <li><strong>Evaluator</strong> — Researcher の Claim と Ledger を読み直し、誇張・未検証・mock を flag。
+                findings-registry.md を更新。これが「agent が自分の主張を盛らない」内蔵ガード。</li>
+                <li><strong>Reviewer</strong> — Evaluator の findings に基づき、次 session の優先タスクを current-focus.md に固定。</li>
+                <li><strong>Improver</strong> — systematic な問題があれば ARA 自体のコード/skill を修正提案。
+                改善 PR は git stash + commit で記録、cohesion 検証後に採択。</li>
+            </ol>
+            <p style="font-size:13px;line-height:1.7;color:#666;">
+                <code>--loop 2</code> 指定で 2 cycle 連続実行 = 8 phase。
+                主体 B は完走、主体 C は cycle 1 の Reviewer に進む前で harness 早期 exit (set -e 周辺の未調査バグ)。
+                これは ARA harness 自体の改善ネタ (= 主体 C が cycle 2 で取り組むはずだった項目)。
+            </p>
+
+            <h3>結果の比較は <a href="./reproduce-deep-dive.html#meta-experiment">Deep Dive §4</a> へ</h3>
+            <div class="callout">
+                methods.html では <strong>セットアップ</strong> までを説明します。
+                定量結果と「人間 13h で +3.6pt」 vs 「agent 1h で +24.3pp + バグ 4 件」の比較、
+                ARA が見つけた既存バグ 4 件、H4 仮説の per-node breakdown、failure taxonomy 4 クラスタ、
+                CLIIntrospector の F2 実証例、Self-Evaluator の自己校正は、
+                すべて <a href="./reproduce-deep-dive.html#meta-experiment">Reproduce Deep Dive の §4</a> に収めています。
+            </div>
+        </section>
+
     </main>
 
     <footer>

@@ -156,5 +156,5 @@
   },
   "evaluation_mode": "PaperBench Code-Dev (claude-sonnet-4-20250514 as judge)",
   "note": "本評価は PaperBench Code-Dev mode（生成コードを judge にかける、実行不要、GPU 不要）。公式 SimpleJudge は GPT-4o だが、我々は claude-sonnet-4 を使用しているため絶対値は公式と直接比較不可。差分（baseline → improved）が我々の改善効果の指標。",
-  "_generated_at": "2026-04-30T12:48:11+00:00"
+  "_generated_at": "2026-04-30T14:09:24+00:00"
 }

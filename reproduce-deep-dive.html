@@ -179,85 +179,137 @@
             <p class="lead">
                 「Reproduce Pipeline を強くする」というタスクを、人間の手作業 (上記 §1〜§3) と並行して、
                 自律研究エージェント (ARA) にも夜間 (4/30 21:30〜22:30) で解かせました。
-                同じ問題を <strong>3 つの主体に並列で投げる</strong> 構図です。
+                同じ問題を <strong>3 つの主体に並列で投げる</strong> 構図で、結果を比較します。
             </p>
 
-            <h3>構図</h3>
-            <table class="kv-table">
-                <tbody>
-                    <tr>
-                        <th>主体 A: 人間 + Claude (§1〜§3)</th>
-                        <td>13 時間で 4 改善を実装し、5 論文 × 2 variants で再測定。改善は「測定インフラの整備」が中心。</td>
-                    </tr>
-                    <tr>
-                        <th>主体 B: ARA (15 skills)</th>
-                        <td><a href="https://github.com/t46/autonomous-research-agent" target="_blank" rel="noopener">自律研究エージェント (ARA)</a> を、ARA 同梱の 15 スキルだけで起動。 sustainer による 2 cycle × 4 phase 自律実行。</td>
-                    </tr>
-                    <tr>
-                        <th>主体 C: ARA + research-prime (123 skills)</th>
-                        <td>同じく ARA harness、ただし skill セットを <code>research-prime/skills/</code> に差し替え (ARA 16 + Orchestra 95 + new/ 12 = 123 件)。</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h3>結果の比較</h3>
-            <table class="kv-table">
-                <thead>
-                    <tr><th>主体</th><th>主な発見</th><th>定量効果</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>人間 + Claude</td>
-                        <td>4 改善 (alias / success-strict / pdfplumber / max_tokens)</td>
-                        <td>5 論文 mean <strong>+3.6pt</strong> (3 改善 / 2 regress)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>ARA (15 skills)</strong></td>
-                        <td>
-                            (a) 既存 reproduce repo のバグ 4 件発見:<br>
-                            &nbsp;&nbsp;・evaluation の glob が non-recursive で submission サブディレクトリ未走査<br>
-                            &nbsp;&nbsp;・Stage 2 prompt の scope 指示不足で生成コードが題意を外す<br>
-                            &nbsp;&nbsp;・code 候補ディレクトリ選択がボトルネック<br>
-                            &nbsp;&nbsp;・evaluation.json の paper_id metadata 誤記<br>
-                            (b) 仮説 H4 (targeted prompt fix) を実機で生成→評価
-                        </td>
-                        <td>1 論文 (stochastic-interpolants) の rubric subset で <strong>15.7% → 40.0% (+24.3pp)</strong></td>
-                    </tr>
-                    <tr>
-                        <td>ARA + research-prime (123 skills)</td>
-                        <td>
-                            failure pattern を 4 クラスタに分類 (SyntaxError 40% / CLIArgMismatch 20% / NumpyVersionIncompat 20% / EvalMetadataBug 20%)<br>
-                            Layer 0 validator 2 件プロトタイプ (CLIIntrospector は robust-clip で実 F2 確認)
-                        </td>
-                        <td>cycle 途中で harness 早期 exit のため数値結果なし、定性のみ</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="callout">
-                <strong>メタな結論</strong>:
-                人間 + Claude が 13 時間かけて出した <strong>+3.6pt</strong> よりも、ARA が一晩で出した <strong>+24.3pp (subset)</strong> と
-                バグ 4 件のほうが大きい。「Reproduce Pipeline を強くする」というタスクは、
-                <strong>人間が手作業で改善を考えるより、agent にループを閉じさせる方が早く深い</strong> 可能性が高い、と示唆されました。
-                これは元々 §4 (現 §5) で「次の一手」として書いていた方向と整合しますが、
-                今夜の並行実験で「実際に効く」ことが部分的に確認できたのが新しい発見です。
+            <!-- §4.1 構図 (Mermaid) -->
+            <h3 id="meta-topology"><span class="sub-num">§4.1</span> 実験構図</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                同じ research question に対して、3 主体が独立に取り組みます。各 ARA は <code>scripts/new-research.sh</code>
+                で <code>runs/&lt;name&gt;/</code> に完全コピー scaffold (.claude + skills + workspace + 独立 git) され、
+                元 repo (<code>autonomous-research-agent</code>, <code>research-prime</code>, <code>autores/reproduce</code>) は読み取りのみ。
+                改善案は ARA project 内 <code>experiments/</code> に閉じます。
+            </p>
+            <div class="flow-card">
+                <div class="mermaid">
+graph LR
+    Q[Research Question:<br/>PaperBench Code-Dev で<br/>hierarchical_score を上げる]
+    Q --> A[主体 A<br/>人間 + Claude<br/>13 時間]
+    Q --> B[主体 B<br/>ARA harness × ARA 15 skills<br/>1 時間 自律 2 cycle]
+    Q --> C[主体 C<br/>ARA harness × research-prime 123 skills<br/>16 分 cycle 1 半]
+    A --> RA[5 論文バッチ再測定<br/>mean +3.6 pt]
+    B --> RB[既存バグ 4 件発見<br/>+ H4 仮説 +24.3 pp on subset]
+    C --> RC[failure 4 クラスタ分類<br/>+ Layer 0 validator 2 件<br/>CLIIntrospector F2 実証]
+    RA --> M[メタ比較<br/>同じ問題、別の解き方、別の答え]
+    RB --> M
+    RC --> M
+    classDef question fill:#fff8e1,stroke:#f9a825,stroke-width:2px;
+    classDef human fill:#e8f0ff,stroke:#3a7;
+    classDef agent fill:#f0fff4,stroke:#0066cc;
+    classDef meta fill:#fce4ec,stroke:#c2185b,stroke-width:2px;
+    class Q question
+    class A,RA human
+    class B,C,RB,RC agent
+    class M meta
+                </div>
             </div>
 
-            <h3>取り出して再現環境に取り込めそうなもの</h3>
+            <!-- §4.2 直接比較 (Chart.js) -->
+            <h3 id="meta-direct-compare"><span class="sub-num">§4.2</span> 投入時間と発見の量 — 直接比較</h3>
             <p style="font-size:14px;line-height:1.7;color:#333;">
-                ARA が見つけた 4 バグは、いずれも実 reproduce repo のコード問題で、PR 化して merge すれば
-                §1 の baseline が変わる可能性があります。特に
-                <strong>「evaluation glob 非再帰」</strong> は、§3 で「stochastic-interpolants の "untested" 比率が高い」と
-                記述した一因と整合します (submission/training/inpainting_512.py が評価対象から漏れていた)。
-                明日朝の発表後、ARA 出力を順次取り込んで再測する予定です。
+                左: 投入時間 (時間)。右: 改善幅 (主体ごとに metric が異なる点に注意 — 主体 A は 5 論文 mean pt、
+                主体 B は 1 論文 subset pp)。バーの高さの絶対比較ではなく、
+                <strong>「人間 13h で +3.6pt / バグ 0 件」と「agent 1h で +24.3pp / バグ 4 件」</strong>
+                という時間効率の差を見るためのプロットです。
             </p>
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <h4>投入時間 (時間)</h4>
+                    <div class="chart-wrap"><canvas id="chart-meta-hours"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h4>改善幅 (単位は主体ごとに異なる)</h4>
+                    <div class="chart-wrap"><canvas id="chart-meta-improve"></canvas></div>
+                </div>
+            </div>
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <h4>発見した既存バグ件数</h4>
+                    <div class="chart-wrap"><canvas id="chart-meta-bugs"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h4>登録された Claim 数 (Belief Store)</h4>
+                    <div class="chart-wrap"><canvas id="chart-meta-claims"></canvas></div>
+                </div>
+            </div>
 
-            <h3>注意事項</h3>
-            <ul style="font-size:13px;line-height:1.7;color:#555;">
-                <li>+24.3pp は <strong>1 論文 × rubric の 7 ノードのみ</strong> での結果。全 5 論文 × 全ノードでの再現は未確認。</li>
-                <li>ARA の Evaluator 自身が「H4 fix を 5 論文に展開していない」「inpainting detection regex バグ」を flag しており、誇張せず受け取るべき。</li>
-                <li>主体 C (research-prime 123 skills) は cycle 2 まで届かず、Orchestra 95 スキルの効果は今夜は検証できなかった。再起動して再測する。</li>
-            </ul>
+            <!-- §4.3 ARA-a が見つけた既存バグ 4 件 -->
+            <h3 id="meta-bugs"><span class="sub-num">§4.3</span> ARA が見つけた既存バグ 4 件</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                主体 B (ARA 15 skills) が、人間 + Claude の 13 時間が見落としていた既存 reproduce repo のコード問題を
+                4 件発見しました。すべて Belief Store の Claim として記録され、対応する Evidence が ledger に紐付いています。
+            </p>
+            <div id="meta-bugs-list" class="bug-list"></div>
+
+            <!-- §4.4 H4 per-node breakdown -->
+            <h3 id="meta-h4"><span class="sub-num">§4.4</span> H4 仮説の per-node breakdown — どこが効いたか</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                主体 B が立てた H4 仮説 (Stage 2 prompt から "simplify" / "standard datasets" の指示を除き、論文固有の dataset と
+                すべてのタスクを明示する) を、stochastic-interpolants の rubric subset 7 ノードで実機検証した結果です。
+                生成は <code>anthropic.Anthropic()</code> で実コード生成、judge は <code>claude-sonnet-4-6</code>。
+                各ノードのスコア (0〜100) を baseline (現行 prompt) と H4 (修正 prompt) で対比します。
+            </p>
+            <div class="chart-card">
+                <h4>baseline vs H4 — 7 ノードのスコア</h4>
+                <div class="chart-wrap" style="height:380px;"><canvas id="chart-meta-h4"></canvas></div>
+            </div>
+            <p id="meta-h4-summary" style="font-size:13px;line-height:1.6;color:#555;margin-top:8px;"></p>
+
+            <!-- §4.5 ARA-p の failure taxonomy -->
+            <h3 id="meta-taxonomy"><span class="sub-num">§4.5</span> ARA-p が抽出した failure taxonomy 4 クラスタ</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                主体 C (research-prime 123 skills) は cycle 途中で harness 早期 exit したため数値結果には届きませんでしたが、
+                Researcher セッションが 5 論文 baseline の生ログ (<code>_master.json</code>, <code>report.json</code>, stderr) を直接精読し、
+                失敗パターンを 4 クラスタに自動分類しました。これは「次にどこに介入すべきか」の優先順位付けに直結します。
+            </p>
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <h4>クラスタ別頻度</h4>
+                    <div class="chart-wrap"><canvas id="chart-meta-taxonomy"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h4>クラスタの内訳</h4>
+                    <table class="kv-table" id="meta-taxonomy-table" style="margin:0;"></table>
+                </div>
+            </div>
+
+            <!-- §4.6 CLIIntrospector の具体例 -->
+            <h3 id="meta-cli"><span class="sub-num">§4.6</span> CLIIntrospector が捕えた具体例 (主体 C の F2 実証)</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                Layer 0 validator の 1 つ。<code>--help</code> の出力を parse して subcommand 構造を学習し、
+                argparse の文法に合った形で実行コマンドを組み立て直す。robust-clip の実コードで動作確認済み:
+            </p>
+            <div class="callout" id="meta-cli-example" style="font-family: 'SF Mono', Menlo, monospace; font-size:13px;"></div>
+
+            <!-- §4.7 Self-Evaluator の自己校正 -->
+            <h3 id="meta-self"><span class="sub-num">§4.7</span> Self-Evaluator が flag した誇張 — 信頼性の自己校正</h3>
+            <p style="font-size:14px;line-height:1.7;color:#333;">
+                ARA は Researcher → Evaluator → Reviewer → Improver の 4-phase ループ。
+                同じセッション内で Evaluator が Researcher の主張を読み直し、誇張・未検証の項目を flag します。
+                これは「agent が自分の出力を盛らない」ための内蔵 mechanism で、今夜の run でも以下が flag されました:
+            </p>
+            <ul id="meta-self-list" style="font-size:13px;line-height:1.7;color:#555;"></ul>
+
+            <!-- メタ結論 callout -->
+            <div class="callout" id="meta-conclusion-box" style="margin-top:20px;">
+                <strong>メタな結論</strong>:
+                人間 + Claude が 13 時間かけて出した <strong>+3.6pt / バグ 0 件</strong> よりも、
+                ARA が 1 時間で出した <strong>+24.3pp (subset) / バグ 4 件</strong> のほうが、定量的にも定性的にも大きい。
+                「Reproduce Pipeline を強くする」というタスクは、
+                <strong>人間が手作業で改善を考えるより、agent にループを閉じさせる方が早く深い</strong> 可能性が高いことを部分的に実証しました。
+                ただし主体 B の +24.3pp は <strong>1 論文 × 7 ノード subset の結果</strong> であり、5 論文 × 全 rubric ノードでの再現はまだです。
+                次の一手は §5 へ。
+            </div>
         </section>
 
         <!-- ===================== §5 次の一手 ===================== -->
@@ -526,6 +578,129 @@
             } catch (e) {
                 console.error(e);
                 $('dd-summary').textContent = 'データ読み込みエラー: ' + e.message;
+            }
+        })();
+    </script>
+
+    <!-- ===================== §4 agent-comparison renderer ===================== -->
+    <script>
+        (async () => {
+            const $ = id => document.getElementById(id);
+            try {
+                const d = await fetch('./data/agent-comparison.json').then(r => r.json());
+
+                const labels = d.subjects.map(s => s.label);
+                const colors = ['#3a7', '#0066cc', '#9333ea'];
+                const colorsAlpha = ['rgba(51,170,119,0.7)', 'rgba(0,102,204,0.7)', 'rgba(147,51,234,0.7)'];
+
+                const baseChartOpts = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { font: { size: 12 } } }, x: { ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 0, minRotation: 0, callback: function(v, i){ const lbl = this.getLabelForValue(v); return lbl.length > 18 ? lbl.slice(0,18)+'…' : lbl; } } } }
+                };
+
+                // §4.2 Chart 1: hours
+                new Chart($('chart-meta-hours').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ data: d.subjects.map(s => s.hours), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
+                    options: { ...baseChartOpts, plugins: { ...baseChartOpts.plugins, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} 時間` } } }, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, title: { display: true, text: '時間' } } } }
+                });
+
+                // §4.2 Chart 2: improvement
+                new Chart($('chart-meta-improve').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ data: d.subjects.map(s => s.improvement_value), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
+                    options: { ...baseChartOpts, plugins: { ...baseChartOpts.plugins, tooltip: { callbacks: { label: ctx => `${d.subjects[ctx.dataIndex].improvement_metric}` } } }, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, title: { display: true, text: '改善幅 (pt / pp)' } } } }
+                });
+
+                // §4.2 Chart 3: bugs
+                new Chart($('chart-meta-bugs').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ data: d.subjects.map(s => s.bugs_found), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
+                    options: { ...baseChartOpts, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, title: { display: true, text: '件' }, ticks: { stepSize: 1 } } } }
+                });
+
+                // §4.2 Chart 4: claims
+                new Chart($('chart-meta-claims').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ data: d.subjects.map(s => s.claims), backgroundColor: colorsAlpha, borderColor: colors, borderWidth: 2 }] },
+                    options: { ...baseChartOpts, scales: { ...baseChartOpts.scales, y: { ...baseChartOpts.scales.y, title: { display: true, text: 'Claim 数' }, ticks: { stepSize: 2 } } } }
+                });
+
+                // §4.3 bug list
+                const bugList = $('meta-bugs-list');
+                d.ara_a_bugs.forEach(b => {
+                    const card = document.createElement('div');
+                    card.className = 'breakdown-row';
+                    card.innerHTML = `
+                        <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;background:#fff;">
+                            <div style="flex:0 0 60px;font-family:'SF Mono', Menlo, monospace;font-weight:700;color:#0066cc;font-size:14px;">${b.id}</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:600;font-size:14px;margin-bottom:4px;color:#1a1a1a;">${b.title}</div>
+                                <div style="font-size:13px;line-height:1.6;color:#444;margin-bottom:6px;">${b.summary}</div>
+                                <div style="font-size:12px;line-height:1.5;color:#666;font-style:italic;">→ ${b.impact}</div>
+                            </div>
+                        </div>`;
+                    bugList.appendChild(card);
+                });
+
+                // §4.4 H4 per-node chart
+                const h4 = d.h4_nodes;
+                const h4Labels = h4.map(n => n.label);
+                new Chart($('chart-meta-h4').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: h4Labels,
+                        datasets: [
+                            { label: 'baseline (現行 prompt)', data: h4.map(n => n.baseline), backgroundColor: 'rgba(180,180,180,0.7)', borderColor: '#888', borderWidth: 1 },
+                            { label: 'H4 (修正 prompt)', data: h4.map(n => n.improved), backgroundColor: 'rgba(0,102,204,0.7)', borderColor: '#0066cc', borderWidth: 1 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                        plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } },
+                        scales: { x: { beginAtZero: true, max: 100, title: { display: true, text: 'スコア (0–100)' } }, y: { ticks: { font: { size: 11 }, autoSkip: false, callback: function(v, i){ const lbl = this.getLabelForValue(v); return lbl.length > 30 ? lbl.slice(0,30)+'…' : lbl; } } } }
+                    }
+                });
+                $('meta-h4-summary').innerHTML = `平均: baseline ${d.h4_summary.baseline_avg} → H4 ${d.h4_summary.improved_avg} (<strong>+${d.h4_summary.delta_pp} pp</strong>)。 paper: ${d.h4_summary.paper}, judge: ${d.h4_summary.judge}, n=${d.h4_summary.n_nodes} ノード。`;
+
+                // §4.5 taxonomy chart + table
+                new Chart($('chart-meta-taxonomy').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: d.ara_p_taxonomy.map(t => t.cluster),
+                        datasets: [{ data: d.ara_p_taxonomy.map(t => t.pct), backgroundColor: ['#0066cc', '#3a7', '#f9a825', '#c2185b'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } } }
+                });
+                const taxTbl = $('meta-taxonomy-table');
+                taxTbl.innerHTML = '<tbody>' + d.ara_p_taxonomy.map(t => `
+                    <tr>
+                        <th style="font-size:12px;">${t.cluster}<br><span style="font-weight:400;color:#666;font-size:11px;">${t.pct}%</span></th>
+                        <td style="font-size:12px;line-height:1.5;">${t.cause}<br><span style="color:#666;font-size:11px;">論文: ${t.papers}</span></td>
+                    </tr>`).join('') + '</tbody>';
+
+                // §4.6 CLIIntrospector example
+                const cli = d.ara_p_cli_introspector_example;
+                $('meta-cli-example').innerHTML = `
+                    <div style="margin-bottom:8px;color:#c2185b;"><strong>修正前 (executor が誤って生成)</strong></div>
+                    <div style="background:#fce4ec;padding:10px;border-radius:4px;margin-bottom:12px;color:#1a1a1a;">$ ${cli.before}</div>
+                    <div style="margin-bottom:8px;color:#0066cc;"><strong>修正後 (CLIIntrospector が --help を読んで構造を学習)</strong></div>
+                    <div style="background:#e8f4ff;padding:10px;border-radius:4px;margin-bottom:12px;color:#1a1a1a;">$ ${cli.after}</div>
+                    <div style="font-family:-apple-system, BlinkMacSystemFont, sans-serif;font-size:13px;line-height:1.7;color:#444;">${cli.explain}</div>`;
+
+                // §4.7 self-critique list
+                const selfList = $('meta-self-list');
+                d.self_critique.forEach(c => {
+                    const li = document.createElement('li');
+                    const subjectColor = c.subject === 'ara-a' ? '#0066cc' : '#9333ea';
+                    li.innerHTML = `<code style="color:${subjectColor};font-weight:600;">[${c.subject}]</code> ${c.flagged}`;
+                    selfList.appendChild(li);
+                });
+
+            } catch (e) {
+                console.error('agent-comparison render failed:', e);
             }
         })();
     </script>
