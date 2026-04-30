@@ -129,6 +129,40 @@
                 スコアが伸びなかったケースは「改善が効かない構造的な理由」を示すデータとして重要です。
             </div>
 
+            <h4>事例 1: arxiv_id の取り違え（バッチ第 1 回時の発覚）</h4>
+            <p style="font-size:14px;line-height:1.7;">
+                バッチ第 1 回（2026-04-30 17:58 起動）で、5 論文中 2 件で <strong>arxiv_id を推測値で hardcode していたために別の論文を fetch していた</strong>ことが判明しました。
+                <code>paperbench-data/</code> 配下の <code>config.yaml</code> に arxiv_id が含まれていなかったため、title から推測したのが裏目に出ました。
+            </p>
+            <ul style="font-size:13.5px;line-height:1.7;">
+                <li><strong>semantic-self-consistency</strong>: 推測 <code>2402.05904</code> → 実際は "FACT-GPT: Fact-Checking..." という別論文をフェッチ。正しくは <code>2410.07839</code></li>
+                <li><strong>mechanistic-understanding</strong>: 推測 <code>2305.00586</code> → 実際は "How does GPT-2 compute greater-than?..." という近いが違う論文。正しくは <code>2401.01967</code></li>
+            </ul>
+            <p style="font-size:14px;line-height:1.7;">
+                発覚後 WebSearch で正しい arxiv_id を取得し、第 2 回バッチで再走。<strong>これは「測定インフラの完成度を上げないと改善効果が見えない」</strong>典型例。
+            </p>
+
+            <h4>事例 2: PaperBench Code-Dev mode の評価特性</h4>
+            <p style="font-size:14px;line-height:1.7;">
+                今回の評価は <strong>Code-Dev mode</strong>（生成コードを judge にかける、実行不要）で行いました。この mode では：
+            </p>
+            <ul style="font-size:13.5px;line-height:1.7;">
+                <li>改善 ① <strong>metric alias 拡張</strong>: 実行ベースの metric 抽出に効くため、Code-Dev では効果薄</li>
+                <li>改善 ② <strong>success 厳密化</strong>: 同じく実行ベースなので Code-Dev では効果薄</li>
+                <li>改善 ③ <strong>pdfplumber</strong>: 論文 Table の数値を Claude に渡すので、生成コードの正確性向上に直接効く ✓</li>
+                <li>改善 ④ <strong>max_tokens 緩和</strong>: 生成コードの cut-off 緩和、複雑な論文ほど効く ✓</li>
+            </ul>
+            <p style="font-size:14px;line-height:1.7;">
+                つまり <strong>4 改善のうち Code-Dev mode で効くのは ③ と ④ の 2 件</strong>。①② を効かせるには Full mode（実際に実行して数値検証）が必要で、これは GPU + 環境構築コストが跳ね、明日の発表 scope 外としました。
+            </p>
+
+            <h4>事例 3: Claude 生成の確率性</h4>
+            <p style="font-size:14px;line-height:1.7;">
+                Stochastic Interpolants の smoke test（improved 1 回目）= 36.49%、本番バッチ（improved 2 回目）= 49.53% と、<strong>同じ prompt でも結果が大きく変動</strong>します。これは Claude が確率的にコードを生成するため。
+                絶対値の比較ではなく、<strong>baseline と improved の差分</strong>を見ることに意味があります。バッチでの差分は +0.94 で、5 論文中で最も小さい改善幅でした。
+            </p>
+
+            <h4>本日測定での個別ケース</h4>
             <div id="dd-failures"></div>
 
             <div class="callout" style="margin-top:18px;">
