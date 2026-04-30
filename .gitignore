@@ -1,0 +1,6 @@
+.DS_Store
+*.log
+.playwright-mcp/
+showcase-*.png
+__pycache__/
+.venv/

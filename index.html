@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoRes — 4 Components Showcase</title>
+    <meta name="description" content="高木 史朗 / Unktok の AutoRes 4 components ショーケース。PaperBench iter, self-improving-agent, reproduce, literature-scout の実成果を可視化。">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <header class="hero">
+        <div class="container">
+            <h1 id="hero-title">AutoRes — 4 Components Showcase</h1>
+            <p class="subtitle" id="hero-subtitle">論文を自律的に再現し、改善し、評価する研究エージェント</p>
+            <div class="component-tiles" id="component-tiles" aria-label="components"></div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- ===================== §1 PaperBench ===================== -->
+        <section class="section" id="paperbench">
+            <h2><span class="num">§1</span> PaperBench Iteration</h2>
+            <p class="lead" id="pb-summary"></p>
+
+            <div class="chart-row">
+                <div class="chart-card">
+                    <div class="chart-title">階層スコアの推移</div>
+                    <div class="chart-wrap"><canvas id="chart-pb-line"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">スコア分布（58 ノード / iter）</div>
+                    <div class="chart-wrap"><canvas id="chart-pb-dist"></canvas></div>
+                </div>
+            </div>
+
+            <h3>改善した点 / 失敗した点</h3>
+            <div class="iter-notes" id="pb-notes"></div>
+
+            <h3>SOTA 比較</h3>
+            <table id="pb-sota">
+                <thead><tr><th>エージェント</th><th>スコア</th><th>備考</th></tr></thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="note-box" id="pb-caveat"></div>
+        </section>
+
+        <!-- ===================== §2 self-improving-agent ===================== -->
+        <section class="section" id="self-improving">
+            <h2><span class="num">§2</span> Self-Improving Agent</h2>
+            <p class="lead" id="si-summary"></p>
+
+            <div class="chart-card">
+                <div class="chart-title">5 サイクルの精度推移（CIFAR-10 CNN）</div>
+                <div class="chart-wrap wide"><canvas id="chart-cycles"></canvas></div>
+            </div>
+
+            <h3>各サイクルの改善内容</h3>
+            <div class="cycle-grid" id="cycle-grid"></div>
+
+            <div class="note-box" id="si-note"></div>
+        </section>
+
+        <!-- ===================== §3 reproduce ===================== -->
+        <section class="section" id="reproduce">
+            <h2><span class="num">§3</span> Reproduce Pipeline</h2>
+            <p class="lead" id="rp-summary"></p>
+
+            <p style="font-size:14px;color:#555;margin-bottom:12px;">
+                対象論文: <strong id="rp-paper-title"></strong>
+                (<a id="rp-paper-link" href="" target="_blank" rel="noopener">arXiv: <span id="rp-paper-arxiv"></span></a>)
+            </p>
+
+            <div class="gauge-wrap">
+                <div class="gauge" id="rp-gauge"><div class="gauge-text" id="rp-gauge-text">—</div></div>
+                <div class="gauge-meta">
+                    <div class="gauge-label">再現スコア</div>
+                    <div class="gauge-value" id="rp-score-value">—</div>
+                    <div class="gauge-label">合計時間</div>
+                    <div class="gauge-value" id="rp-duration-value">—</div>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">5 ステージの所要時間（秒）</div>
+                <div class="chart-wrap"><canvas id="chart-stages"></canvas></div>
+            </div>
+
+            <h3>ステージタイムライン</h3>
+            <ul class="stage-timeline" id="stage-timeline"></ul>
+
+            <h3>主張の検証（Claim Verification）</h3>
+            <div class="claims-list" id="claims-list"></div>
+        </section>
+
+        <!-- ===================== §4 literature-scout ===================== -->
+        <section class="section" id="literature-scout">
+            <h2><span class="num">§4</span> Literature Scout</h2>
+            <p class="lead" id="ls-summary"></p>
+
+            <h3>動作の流れ</h3>
+            <div class="concept-flow" id="ls-concept"></div>
+
+            <h3>CLI 出力サンプル</h3>
+            <pre class="cli-sample" id="ls-cli"></pre>
+
+            <h3>サンプル出力（代表的な論文）</h3>
+            <div class="paper-cards" id="ls-papers"></div>
+
+            <div class="note-box" id="ls-note"></div>
+        </section>
+
+        <!-- ===================== §5 全体俯瞰 ===================== -->
+        <section class="section" id="overview-table-section">
+            <h2><span class="num">§5</span> 4 コンポーネント 全体俯瞰</h2>
+            <p class="lead">入力 → 出力 → 主な発見の対応表。</p>
+            <table id="overview-matrix">
+                <thead><tr><th>コンポーネント</th><th>入力</th><th>出力</th><th>主な発見</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <footer>
+        <div>AutoRes 4 Components Showcase · 高木 史朗 / Unktok</div>
+        <div class="gen-time" id="footer-time">生成日時: —</div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="./app.js"></script>
+</body>
+</html>

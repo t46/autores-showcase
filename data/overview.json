@@ -1,0 +1,61 @@
+{
+  "title": "AutoRes — 4 コンポーネント ショーケース",
+  "subtitle": "論文を自律的に再現し、改善し、評価する研究エージェント（5/1 ミーティング向け）",
+  "components": [
+    {
+      "id": "paperbench",
+      "name": "PaperBench Iter",
+      "tagline": "「生成 → 反復改善」で 43.2% → 94.5%",
+      "metric": "94.5%",
+      "status": "完成"
+    },
+    {
+      "id": "self-improving",
+      "name": "Self-Improving Agent",
+      "tagline": "CIFAR-10 CNN を自動で書き換える 24/365 ループ",
+      "metric": "best 0.6957 (5 cycles)",
+      "status": "完成"
+    },
+    {
+      "id": "reproduce",
+      "name": "Reproduce Pipeline",
+      "tagline": "arXiv URL から再現レポートまで（5 ステージ）",
+      "metric": "score 0.5 / 161.41s",
+      "status": "α版"
+    },
+    {
+      "id": "literature-scout",
+      "name": "Literature Scout",
+      "tagline": "arXiv + Semantic Scholar + Claude による関連度判定",
+      "metric": "CLI ツール",
+      "status": "完成"
+    }
+  ],
+  "matrix": [
+    {
+      "name": "PaperBench Iter",
+      "input": "rubric.json + 生成コード",
+      "output": "階層スコア / ノード単位の評価",
+      "key_finding": "反復改善で +51.3 ポイント"
+    },
+    {
+      "name": "Self-Improving Agent",
+      "input": "train.py + データセット",
+      "output": "改善された train.py + 精度履歴",
+      "key_finding": "毎サイクル改善せず → ロールバックと失敗履歴管理が必要"
+    },
+    {
+      "name": "Reproduce Pipeline",
+      "input": "arXiv URL",
+      "output": "再現コード + 実行結果 + 主張の検証",
+      "key_finding": "5 ステージ中、Code Finding が 56% の時間を占める（90秒 / 161秒）"
+    },
+    {
+      "name": "Literature Scout",
+      "input": "自然言語クエリ + 研究コンテキスト",
+      "output": "関連度でランクされた論文リスト",
+      "key_finding": "Intel（push）と Scout（pull）を使い分ける"
+    }
+  ],
+  "_generated_at": "2026-04-30T07:48:19+00:00"
+}
