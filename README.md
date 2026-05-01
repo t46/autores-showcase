@@ -1,6 +1,35 @@
 # AutoRes Showcase
 
-5/1 ミーティング向けの単一ページショーケース。AutoRes 4 components (PaperBench iter, self-improving-agent, reproduce, literature-scout) の実成果を可視化する。
+5/1 ミーティング向けのショーケース。AutoRes 4 components (PaperBench iter, self-improving-agent, reproduce, literature-scout) の実成果を可視化 + Reproduce Pipeline Deep Dive。
+
+**🌐 Live**: <https://t46.github.io/autores-showcase/>
+
+| ページ | URL |
+|---|---|
+| 結果 | <https://t46.github.io/autores-showcase/index.html> |
+| 手法・タスク | <https://t46.github.io/autores-showcase/methods.html> |
+| **Reproduce Deep Dive** | <https://t46.github.io/autores-showcase/reproduce-deep-dive.html> |
+
+**🔗 Companion repo**: [t46/autores-reproduce](https://github.com/t46/autores-reproduce) — Reproduce Pipeline 本体コード (deep-dive で見せている数値の出所)
+
+---
+
+## Quick clone (発表 / 説明用)
+
+```bash
+# 2 repos clone
+git clone https://github.com/t46/autores-showcase.git
+git clone https://github.com/t46/autores-reproduce.git
+
+# Showcase をローカルで開く
+cd autores-showcase
+python3 -m http.server 8080
+# → http://localhost:8080/ をブラウザで
+```
+
+ブラウザだけで完結する場合は live URL (<https://t46.github.io/autores-showcase/>) を直接開けば OK。
+
+---
 
 ## 構成
 
